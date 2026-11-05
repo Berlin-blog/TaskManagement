@@ -1,0 +1,23 @@
+{
+  "name": "task-schedule-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "任务排期管理工具后端：Express + MySQL",
+  "license": "MIT",
+  "author": "Berlin-blog",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "cleanup": "node scripts/cleanup-orphans.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "multer": "^2.4.0",
+    "mysql2": "^3.11.3"
+  }
+}

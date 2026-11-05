@@ -1,0 +1,55 @@
+{
+  "name": "task-schedule-tool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "任务排期管理工具：Excel 导入、周视图 / 看板 / 日历 / 统计，React + Express + MySQL",
+  "license": "MIT",
+  "author": "Berlin-blog",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Berlin-blog/Taskmanegement.git"
+  },
+  "homepage": "https://github.com/Berlin-blog/Taskmanegement#readme",
+  "bugs": {
+    "url": "https://github.com/Berlin-blog/Taskmanegement/issues"
+  },
+  "keywords": [
+    "task-management",
+    "schedule",
+    "react",
+    "express",
+    "mysql",
+    "excel"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:front\"",
+    "dev:server": "cd server && node index.js",
+    "dev:front": "vite",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "recharts": "^2.12.7",
+    "xlsx": "^0.18.5",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.0.1",
+    "postcss": "^8.4.45",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.3"
+  }
+}
