@@ -7,11 +7,11 @@
   "author": "Berlin-blog",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Berlin-blog/Taskmanegement.git"
+    "url": "git+https://github.com/Berlin-blog/TaskManagement.git"
   },
-  "homepage": "https://github.com/Berlin-blog/Taskmanegement#readme",
+  "homepage": "https://github.com/Berlin-blog/TaskManagement#readme",
   "bugs": {
-    "url": "https://github.com/Berlin-blog/Taskmanegement/issues"
+    "url": "https://github.com/Berlin-blog/TaskManagement/issues"
   },
   "keywords": [
     "task-management",
