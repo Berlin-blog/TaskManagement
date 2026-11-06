@@ -137,22 +137,25 @@ export default function Board() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="page-stack">
       <PageHeader
         title="看板"
-        meta={
+        scope={
           <>
-            <Badge className="bg-brand-50 text-brand-700 ring-brand-200">{currentRange}</Badge>
-            <span className="text-xs text-slate-400">{filtered.length} 项 · 未完成 {openCount}</span>
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-brand-50 px-2.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-200/80">
+              <Icon name="calendar" className="h-3.5 w-3.5" />
+              {currentRange}
+            </span>
+            <span className="num text-xs text-slate-500">{filtered.length} 项 · 未完成 <b className="font-semibold text-slate-700">{openCount}</b></span>
           </>
         }
-        subtitle="拖拽卡片到另一列切换状态；延期任务保留在所属状态列，并显示逾期提醒。"
+        subtitle="拖拽卡片跨越状态列；延期任务保留在所属列，并用颜色和到期文案双重提示。"
         actions={
           <>
             <Link to={filter.week ? `/tasks?week=${encodeURIComponent(filter.week)}` : '/tasks'}>
               <Button variant="outline" className="min-h-9">
                 <Icon name="tasks" className="h-4 w-4" />
-                列表
+                列表视图
               </Button>
             </Link>
             <Button variant="primary" className="min-h-9" onClick={() => setAddOpen(true)}>
@@ -218,6 +221,7 @@ export default function Board() {
       {filtered.length === 0 ? (
         <Card>
           <EmptyState
+            icon={<Icon name="board" className="h-5 w-5 text-brand-500" />}
             title="当前范围没有任务"
             hint="调整筛选条件，或切换到全部周；也可以直接新增任务。"
             action={
@@ -246,27 +250,36 @@ export default function Board() {
                     col.bar,
                     dragOver === col.key && 'bg-brand-50/30 ring-2 ring-brand-300',
                   )}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(col.key); }}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(col.key); }}
                   onDragLeave={() => setDragOver(null)}
                   onDrop={(e) => { e.preventDefault(); void onDrop(col); }}
+                  aria-label={`${col.label}列，${items.length} 项`}
                 >
                   <div className="mb-2 flex items-start justify-between gap-2 px-1 pt-1">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className={cn('h-2 w-2 rounded-full', col.dot)} />
-                        <span className="text-sm font-semibold text-slate-700">{col.label}</span>
-                        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 tabular-nums">{items.length}</span>
+                        <span className="text-sm font-semibold text-slate-800">{col.label}</span>
+                        <span className="num rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">{items.length}</span>
                       </div>
                       {(col.key === 'notStarted' || col.key === 'inProgress') && (
-                        <p className="mt-0.5 text-[10px] text-slate-400">未完成 {unfinished} 项</p>
+                        <p className="num mt-0.5 text-[11px] text-slate-500">未完成 {unfinished} 项</p>
                       )}
                     </div>
                   </div>
-                  <div className="flex max-h-[calc(100vh_-_360px)] min-h-[180px] flex-col gap-2 overflow-y-auto px-0.5 pb-1">
+                  {dragOver === col.key && (
+                    <div className="mb-2 rounded-lg border border-dashed border-brand-400 bg-brand-50 px-2 py-1.5 text-center text-[11px] font-semibold text-brand-700">
+                      松开以移动到「{col.label}」
+                    </div>
+                  )}
+                  <div className="scrollbar-thin flex max-h-[calc(100vh_-_360px)] min-h-[180px] flex-col gap-2 overflow-y-auto px-0.5 pb-1">
                     {items.map((t) => renderCard(t))}
                     {items.length === 0 && (
-                      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-200 py-10 text-xs text-slate-300">
-                        拖拽任务到这里
+                      <div className={cn(
+                        'flex flex-1 items-center justify-center rounded-lg border border-dashed px-3 py-10 text-center text-xs',
+                        dragOver === col.key ? 'border-brand-300 bg-brand-50/50 text-brand-600' : 'border-slate-200 text-slate-500',
+                      )}>
+                        {dragOver === col.key ? '松开即可移动到这里' : '暂无任务 · 可拖拽卡片到这里'}
                       </div>
                     )}
                   </div>
@@ -372,15 +385,15 @@ function BoardCard({
       role="button"
       tabIndex={0}
       className={cn(
-        'group cursor-pointer rounded-lg border border-slate-100 border-l-[3px] bg-white p-3 shadow-soft transition hover:border-slate-200 hover:shadow-card focus-visible:ring-2 focus-visible:ring-brand-300',
+        'group cursor-pointer rounded-xl border border-slate-200/80 border-l-[3px] bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,.03)] transition hover:border-slate-300 hover:shadow-card focus-visible:ring-2 focus-visible:ring-brand-300',
         STATUS_BORDER_CLASS[ds],
-        draggable && 'active:cursor-grabbing',
+        draggable && 'cursor-grab active:cursor-grabbing',
         compact && 'p-3.5',
         className,
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className={cn('min-w-0 break-words text-sm font-medium leading-snug', done ? 'text-slate-400 line-through' : 'text-slate-800')}>
+        <p className={cn('min-w-0 break-words text-[13.5px] font-semibold leading-snug', done ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-900')}>
           {task.title}
           {task.isPeriodic && <span className="ml-1 text-[10px] text-brand-500">⟳</span>}
         </p>
@@ -389,19 +402,19 @@ function BoardCard({
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <Badge className={priorityBadgeClass(task.priority)}>P{task.priority} {priorityLabel(task.priority, settings)}</Badge>
-        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-          <Icon name="calendar" className="h-3 w-3 text-slate-400" />
+        <span className="num inline-flex items-center gap-1 text-[11px] text-slate-600">
+          <Icon name="calendar" className="h-3 w-3 text-slate-500" />
           {task.revisedDateText || task.estimatedDateText || '未设日期'}
         </span>
         {hint && (
-          <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium', DUE_URGENCY_TEXT_CLASS[urgency])}>
+          <span className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', DUE_URGENCY_TEXT_CLASS[urgency])}>
             <span className={cn('h-1.5 w-1.5 rounded-full', DUE_URGENCY_DOT_CLASS[urgency])} />
             {hint}
           </span>
         )}
       </div>
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
         <span className="truncate">{task.requester || '未指定需求人'}</span>
         <span className="text-slate-300">·</span>
         <span className="min-w-0 truncate" title={task.weekName}>{displayWeekName(task.weekName)}</span>

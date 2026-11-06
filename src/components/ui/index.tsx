@@ -8,34 +8,41 @@ export function Card({ className, children }: { className?: string; children: Re
 }
 
 export function CardTitle({ children, className }: { children: ReactNode; className?: string }) {
-  return <h3 className={cn('text-sm font-semibold text-slate-700 mb-3', className)}>{children}</h3>;
+  return <h3 className={cn('mb-3 text-sm font-semibold text-slate-800', className)}>{children}</h3>;
 }
 
-/** 页面标题 + 主操作，全站统一标题行结构 */
+/**
+ * 页面标题 + 当前范围 + 主操作
+ * 标题回答「我在哪」，scope 回答「当前看的是哪批数据」，actions 只保留一个主操作。
+ */
 export function PageHeader({
   title,
   subtitle,
   meta,
+  scope,
   actions,
   className,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   meta?: ReactNode;
+  /** 当前范围，例如周、月份、筛选结果数 */
+  scope?: ReactNode;
   actions?: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between', className)}>
+    <header className={cn('page-header', className)}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-800">{title}</h1>
+          <h1 className="page-title">{title}</h1>
           {meta}
         </div>
-        {subtitle && <div className="mt-1 text-sm text-slate-500">{subtitle}</div>}
+        {subtitle && <div className="page-subtitle mt-1.5 max-w-3xl">{subtitle}</div>}
+        {scope && <div className="scope-row mt-3">{scope}</div>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-    </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>}
+    </header>
   );
 }
 
@@ -54,8 +61,8 @@ export function SectionTitle({
   return (
     <div className={cn('flex items-end justify-between gap-3', className)}>
       <div>
-        <h2 className="text-base font-semibold text-slate-800">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+        <h2 className="section-heading">{title}</h2>
+        {subtitle && <p className="section-caption">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -163,20 +170,32 @@ export function Badge({ className, children, ...props }: React.HTMLAttributes<HT
   return <span {...props} className={cn('badge whitespace-nowrap', className)}>{children}</span>;
 }
 
-export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  hint,
+  action,
+  icon,
+}: {
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+  icon?: ReactNode;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center py-14 text-center">
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">📋</div>
-      <p className="text-sm font-medium text-slate-700">{title}</p>
-      {hint && <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400">{hint}</p>}
-      {action && <div className="mt-4 flex flex-wrap justify-center gap-2">{action}</div>}
+    <div className="flex flex-col items-center justify-center px-5 py-14 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200/70 bg-slate-50 text-xl text-slate-500">
+        {icon ?? '📋'}
+      </div>
+      <p className="text-sm font-semibold text-slate-700">{title}</p>
+      {hint && <p className="mt-1.5 max-w-sm text-xs leading-relaxed text-slate-500">{hint}</p>}
+      {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   );
 }
 
 /** 加载占位：替换“加载中…”纯文字，减少布局跳动 */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-lg bg-slate-100', className)} />;
+  return <div className={cn('skeleton-shimmer animate-pulse rounded-lg bg-slate-100', className)} />;
 }
 
 export function PageSkeleton({ rows = 6 }: { rows?: number }) {
@@ -288,16 +307,23 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="modal-panel relative z-10 w-full max-w-lg card p-0"
+        className="modal-panel card relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-hidden p-0"
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-          <button className="btn-ghost px-2 py-1 text-slate-400 hover:text-slate-600" onClick={onClose} aria-label="关闭">
-            ✕
+        <div className="flex items-center justify-between border-b border-slate-200/70 px-5 py-3.5">
+          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            onClick={onClose}
+            aria-label="关闭"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">{footer}</div>}
+        <div className="max-h-[calc(100dvh-12rem)] overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex justify-end gap-2 border-t border-slate-200/70 bg-slate-50/50 px-5 py-3">{footer}</div>}
       </div>
     </div>
   );
@@ -325,10 +351,26 @@ export function toast(msg: string, options?: ToastOptions) {
   if (_toastSetter) _toastSetter(msg, options);
 }
 
-const TOAST_STYLE: Record<ToastType, { icon: string; className: string }> = {
-  success: { icon: '✓', className: 'bg-slate-800' },
-  error: { icon: '!', className: 'bg-rose-600' },
-  info: { icon: 'i', className: 'bg-slate-700' },
+const TOAST_STYLE: Record<ToastType, { icon: ReactNode; iconClass: string; borderClass: string }> = {
+  success: {
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+        <path d="M5 12l4 4L19 6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    iconClass: 'bg-emerald-50 text-emerald-600 ring-emerald-100',
+    borderClass: 'border-slate-200/80',
+  },
+  error: {
+    icon: <span className="text-sm font-bold">!</span>,
+    iconClass: 'bg-rose-50 text-rose-600 ring-rose-100',
+    borderClass: 'border-rose-200/80',
+  },
+  info: {
+    icon: <span className="text-sm font-bold">i</span>,
+    iconClass: 'bg-brand-50 text-brand-600 ring-brand-100',
+    borderClass: 'border-slate-200/80',
+  },
 };
 
 export function ToastHost() {
@@ -343,40 +385,59 @@ export function ToastHost() {
     return () => { _toastSetter = null; };
   }, []);
 
+  const duration = state?.options.duration ?? (state?.options.onClick ? 8000 : 2200);
+
   useEffect(() => {
     if (!visible || !state) return;
-    const id = setTimeout(() => setVisible(false), state.options.duration ?? 1800);
+    const id = setTimeout(() => setVisible(false), duration);
     return () => clearTimeout(id);
-  }, [visible, state]);
+  }, [visible, state, duration]);
 
   if (!visible || !state) return null;
   const type = state.options.type ?? 'success';
   const style = TOAST_STYLE[type];
   return (
-    <div className="fixed bottom-6 left-1/2 z-[100] w-[calc(100%-2rem)] max-w-md -translate-x-1/2">
+    <div className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[100] sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 md:bottom-6">
       <div
-        className={cn('toast flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-white shadow-lg', style.className)}
-        role="status"
-        aria-live="polite"
-      >
-        <span className={cn(
-          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-          type === 'error' ? 'bg-white/20' : 'bg-white/15',
-        )}>
-          {style.icon}
-        </span>
-        <span className="min-w-0 flex-1 break-words">{state.msg}</span>
-        {state.options.label && state.options.onClick && (
-          <button
-            className="shrink-0 rounded-md bg-white px-3 py-1 text-xs font-semibold text-slate-800 shadow-soft transition hover:bg-slate-100"
-            onClick={() => {
-              state.options.onClick!();
-              setVisible(false);
-            }}
-          >
-            {state.options.label}
-          </button>
+        className={cn(
+          'toast relative overflow-hidden rounded-xl border bg-white px-3.5 py-3 text-sm text-slate-700 shadow-[var(--shadow-float)]',
+          style.borderClass,
         )}
+        role={type === 'error' ? 'alert' : 'status'}
+        aria-live={type === 'error' ? 'assertive' : 'polite'}
+      >
+        <div className="flex items-center gap-3">
+          <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1 ring-inset', style.iconClass)}>
+            {style.icon}
+          </span>
+          <span className="min-w-0 flex-1 break-words text-[13px] font-medium leading-5">{state.msg}</span>
+          {state.options.label && state.options.onClick && (
+            <button
+              className="shrink-0 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100"
+              onClick={() => {
+                state.options.onClick!();
+                setVisible(false);
+              }}
+            >
+              {state.options.label}
+            </button>
+          )}
+          <button
+            type="button"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            onClick={() => setVisible(false)}
+            aria-label="关闭提示"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <span
+          aria-hidden="true"
+          className={cn('absolute bottom-0 left-0 h-0.5 bg-brand-400/70', type === 'error' && 'bg-rose-400/70')}
+          style={{ animation: `toastProgress ${duration}ms linear forwards` }}
+        />
       </div>
     </div>
   );

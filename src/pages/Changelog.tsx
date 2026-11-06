@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useChangelogs, useImportLogs, useAllTasks } from '../hooks/useTasks';
 import {
-  Card, CardTitle, EmptyState, Badge, PageSkeleton, PageHeader, Button, Input,
+  Card, CardTitle, EmptyState, Badge, PageSkeleton, PageHeader, Button, Input, Segmented,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { DISPLAY_STATUS_LABELS } from '../lib/status';
@@ -109,35 +109,30 @@ export default function Changelog() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="page-stack">
       <PageHeader
         title="更新日志"
         subtitle="查看字段变更与导入的历史记录；默认展示最近记录，可筛选后展开长内容。"
-        actions={<Badge className="bg-slate-100 text-slate-600 ring-slate-200">{tab === 'field' ? `${filtered.length} 条记录` : `${keywordFilteredImport.length} 条历史`}</Badge>}
+        scope={
+          <>
+            <Badge className="bg-slate-100 text-slate-600 ring-slate-200">
+              {tab === 'field' ? `${filtered.length} 条记录` : `${keywordFilteredImport.length} 条历史`}
+            </Badge>
+            <span className="text-xs text-slate-500">最近 300 条字段变更</span>
+          </>
+        }
+        actions={
+          <Segmented
+            value={tab}
+            onChange={setTab}
+            ariaLabel="日志类型"
+            options={[
+              { value: 'field', label: '字段变更' },
+              { value: 'history', label: '历史日志' },
+            ]}
+          />
+        }
       />
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setTab('field')}
-          className={cn(
-            'min-h-9 rounded-lg px-4 text-sm font-medium transition',
-            tab === 'field' ? 'bg-brand-600 text-white shadow-soft' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-          )}
-        >
-          字段变更
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('history')}
-          className={cn(
-            'min-h-9 rounded-lg px-4 text-sm font-medium transition',
-            tab === 'history' ? 'bg-brand-600 text-white shadow-soft' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-          )}
-        >
-          历史日志（Sheet2）
-        </button>
-      </div>
 
       {tab === 'field' ? (
         <>

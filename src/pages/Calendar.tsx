@@ -159,24 +159,29 @@ export default function Calendar() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="page-stack">
       <PageHeader
         title="日历"
-        meta={<Badge className="bg-brand-50 text-brand-700 ring-brand-200">{year}年{MONTH_NAMES[month]}</Badge>}
-        subtitle={`当月 ${monthStats.total} 项 · 已完成 ${monthStats.completed}${monthStats.delayed > 0 ? ` · 延期 ${monthStats.delayed}` : ''}`}
-        actions={
+        scope={
           <>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" className="min-h-9 px-2" onClick={prevMonth} aria-label="上个月">
-                <Icon name="chevron-left" className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" className="min-h-9" onClick={goToday}>今天</Button>
-              <Button variant="outline" className="min-h-9" onClick={goThisWeek}>本周</Button>
-              <Button variant="ghost" className="min-h-9 px-2" onClick={nextMonth} aria-label="下个月">
-                <Icon name="chevron-right" className="h-4 w-4" />
-              </Button>
-            </div>
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-brand-50 px-2.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-200/80">
+              {year}年{MONTH_NAMES[month]}
+            </span>
+            <span className="num text-xs text-slate-500">当月 {monthStats.total} 项 · 已完成 {monthStats.completed}{monthStats.delayed > 0 ? ` · 延期 ${monthStats.delayed}` : ''}</span>
           </>
+        }
+        subtitle="按日期查看排期；颜色与文字同时标记状态，点日期可查看当天任务。"
+        actions={
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" className="btn-icon" onClick={prevMonth} aria-label="上个月">
+              <Icon name="chevron-left" className="h-4 w-4" />
+            </Button>
+            <Button variant="primary" className="min-h-9" onClick={goToday}>回到今天</Button>
+            <Button variant="outline" className="min-h-9" onClick={goThisWeek}>本周</Button>
+            <Button variant="ghost" className="btn-icon" onClick={nextMonth} aria-label="下个月">
+              <Icon name="chevron-right" className="h-4 w-4" />
+            </Button>
+          </div>
         }
       />
 
@@ -195,7 +200,14 @@ export default function Calendar() {
       {mobileView === 'agenda' && (
         <div className="space-y-3 md:hidden">
           {agendaGroups.length === 0 ? (
-            <Card><EmptyState title="本月还没有排期" hint="切换到月历查看其他日期，或新增带日期的任务。" /></Card>
+            <Card>
+              <EmptyState
+                icon={<Icon name="calendar" className="h-5 w-5 text-brand-500" />}
+                title="本月还没有排期"
+                hint="切换到月历查看其他日期，或去任务页新增一条带日期的任务。"
+                action={<Link to="/tasks"><Button variant="primary">去新增任务</Button></Link>}
+              />
+            </Card>
           ) : (
             agendaGroups.map(([date, list]) => (
               <section key={date}>
@@ -220,7 +232,7 @@ export default function Calendar() {
         <Card className="min-w-0 p-3 sm:p-4">
           <div className="mb-2 grid grid-cols-7 gap-1">
             {WEEKDAY_LABELS.map((w) => (
-              <div key={w} className="py-1 text-center text-[11px] font-medium text-slate-400 sm:text-xs">{w}</div>
+              <div key={w} className="py-1 text-center text-[11px] font-semibold text-slate-500 sm:text-xs">{w}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -246,13 +258,13 @@ export default function Calendar() {
                 >
                   <div className="flex items-center justify-between">
                     <span className={cn(
-                      'text-[11px] font-semibold sm:text-xs',
-                      cell.isToday ? 'text-brand-700' : hasOpen ? 'text-slate-700' : 'text-slate-400',
+                      'num text-[11px] font-semibold sm:text-xs',
+                      cell.isToday ? 'text-brand-700' : hasOpen ? 'text-slate-800' : 'text-slate-500',
                     )}>
                       {cell.day}
                     </span>
                     {dayTasks.length > 0 && (
-                      <span className="rounded-full bg-slate-100 px-1 text-[9px] text-slate-500 sm:text-[10px]">{dayTasks.length}</span>
+                      <span className="num rounded-full bg-slate-100 px-1.5 text-[10px] text-slate-600">{dayTasks.length}</span>
                     )}
                   </div>
 
@@ -263,13 +275,13 @@ export default function Calendar() {
                       return (
                         <div key={t.id} className="flex min-w-0 items-center gap-1" title={t.title}>
                           <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[ds])} />
-                          <span className={cn('truncate text-[10px] leading-tight', isDone(t) ? 'text-slate-400 line-through' : 'text-slate-600')}>
+                          <span className={cn('truncate text-[11px] leading-tight', isDone(t) ? 'text-slate-500 line-through' : 'text-slate-700')}>
                             {t.title}
                           </span>
                         </div>
                       );
                     })}
-                    {dayTasks.length > 2 && <p className="text-[9px] text-slate-400">+{dayTasks.length - 2} 项</p>}
+                    {dayTasks.length > 2 && <p className="num text-[10px] text-slate-500">+{dayTasks.length - 2} 项</p>}
                   </div>
 
                   {/* 手机：只留状态点与数量 */}
@@ -304,7 +316,12 @@ export default function Calendar() {
             </div>
             <div className="max-h-[calc(100vh_-_12rem)] overflow-y-auto p-3">
               {panelTasks.length === 0 ? (
-                <EmptyState title="当天没有排期任务" hint="点击月历中的其他日期查看，或新增一条带日期的任务。" />
+                <EmptyState
+                  icon={<Icon name="calendar" className="h-5 w-5 text-slate-500" />}
+                  title="当天没有排期任务"
+                  hint="点击月历中的其他日期查看，或去任务页新增一条带日期的任务。"
+                  action={<Link to="/tasks" className="text-xs font-semibold text-brand-600 hover:underline">去新增任务 →</Link>}
+                />
               ) : (
                 <div className="space-y-2">
                   {panelTasks.map((t) => renderTask(t))}
@@ -349,7 +366,10 @@ export default function Calendar() {
             </div>
             <div className="max-h-[62vh] overflow-y-auto p-3">
               {panelTasks.length === 0 ? (
-                <p className="py-10 text-center text-sm text-slate-400">当天没有排期任务</p>
+                <div className="py-8 text-center">
+                  <p className="text-sm font-medium text-slate-700">当天没有排期任务</p>
+                  <Link to="/tasks" className="mt-2 inline-block text-xs font-semibold text-brand-600 hover:underline">去任务页新增 →</Link>
+                </div>
               ) : (
                 <div className="space-y-2">{panelTasks.map((t) => renderTask(t, true))}</div>
               )}
@@ -359,11 +379,12 @@ export default function Calendar() {
       )}
 
       {noDateCount > 0 && (
-        <Card className="p-3.5">
-          <p className="text-sm text-slate-500">
-            另有 <b className="text-slate-700">{noDateCount}</b> 项任务未设置日期（“持续”“待定”等），不会出现在日历中。
-            <Link to="/tasks?due=none" className="ml-2 font-medium text-brand-600 hover:underline">查看这些任务 →</Link>
+        <Card className="flex flex-wrap items-center gap-3 p-3.5">
+          <Icon name="alert" className="h-4 w-4 shrink-0 text-amber-600" />
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-slate-600">
+            另有 <b className="num font-semibold text-slate-800">{noDateCount}</b> 项任务未设置日期（“持续”“待定”等），不会出现在日历中。
           </p>
+          <Link to="/tasks?due=none" className="text-xs font-semibold text-brand-600 hover:underline">查看这些任务 →</Link>
         </Card>
       )}
     </div>
@@ -384,11 +405,11 @@ function CalendarTask({
   const urgency = dueUrgency(task);
   return (
     <div className={cn(
-      'rounded-lg border bg-white p-2.5',
-      delayed ? 'border-orange-200' : 'border-slate-100',
-      compact && 'p-3',
+      'rounded-xl border bg-white p-3',
+      delayed ? 'border-orange-200' : 'border-slate-200/80',
+      compact && 'p-3.5',
     )}>
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
         <input
           type="checkbox"
           checked={done}
@@ -398,28 +419,28 @@ function CalendarTask({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className={cn('min-w-0 break-words text-sm font-medium leading-snug', done ? 'text-slate-400 line-through' : 'text-slate-800')}>
+            <p className={cn('min-w-0 break-words text-[13.5px] font-semibold leading-snug', done ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-900')}>
               {task.title}
             </p>
             <Badge className={STATUS_BADGE_CLASS[ds]}>{DISPLAY_STATUS_LABELS[ds]}</Badge>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
             <Badge className={priorityBadgeClass(task.priority)}>P{task.priority} {priorityLabel(task.priority, settings)}</Badge>
             <span className="truncate">{task.requester || '未指定需求人'}</span>
             <span className="min-w-0 truncate" title={task.weekName}>{displayWeekName(task.weekName)}</span>
-            {task.revisedDateText && <span className="text-amber-600">修订 {task.revisedDateText}</span>}
+            {task.revisedDateText && <span className="num font-medium text-amber-700">修订 {task.revisedDateText}</span>}
           </div>
           {hint && (
-            <p className={cn('mt-1 inline-flex items-center gap-1 text-[10px] font-medium', DUE_URGENCY_TEXT_CLASS[urgency])}>
+            <p className={cn('mt-1 inline-flex items-center gap-1 text-[11px] font-semibold', DUE_URGENCY_TEXT_CLASS[urgency])}>
               <span className={cn('h-1.5 w-1.5 rounded-full', DUE_URGENCY_DOT_CLASS[urgency])} />
               {hint}
             </p>
           )}
-          {task.remark && <p className="mt-1 line-clamp-2 break-words text-[11px] text-slate-500">{task.remark}</p>}
-          <div className="mt-1.5 flex justify-end">
+          {task.remark && <p className="mt-1.5 line-clamp-2 break-words text-[11px] leading-relaxed text-slate-600">{task.remark}</p>}
+          <div className="mt-2 flex justify-end">
             <Link
               to={`/tasks?q=${encodeURIComponent(task.title)}`}
-              className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-brand-600"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-brand-600"
             >
               在任务页打开
               <Icon name="arrow-right" className="h-3 w-3" />

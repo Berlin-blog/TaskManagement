@@ -286,11 +286,13 @@ export default function Tasks() {
       <PageHeader
         className="shrink-0"
         title="任务"
-        meta={
+        subtitle="按工作周组织任务；先处理延期与未完成，再查看已完成记录。"
+        scope={
           <>
-            <Badge className="bg-brand-50 text-brand-700 ring-brand-200">
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-brand-50 px-2.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-200/80">
+              <Icon name="calendar" className="h-3.5 w-3.5" />
               {isWeekMode ? displayWeekName(viewWeek) : '全部周'}
-            </Badge>
+            </span>
             <Segmented
               value={effectiveView}
               onChange={setView}
@@ -301,22 +303,33 @@ export default function Tasks() {
               ]}
             />
             {delayed > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-600 ring-1 ring-inset ring-orange-100">
+              <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-orange-50 px-2.5 text-[11px] font-semibold text-orange-700 ring-1 ring-inset ring-orange-200/80">
                 <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
                 {delayed} 项延期
               </span>
             )}
             {anomalies > 0 && (
-              <span className="text-[11px] font-medium text-amber-600">异常 {anomalies}</span>
+              <span className="inline-flex h-7 items-center rounded-full bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200/80">
+                待补完成时间 {anomalies}
+              </span>
             )}
             {hasFilter && (
-              <span className="text-[11px] text-brand-600">筛选后 {filtered.length} 项</span>
+              <span className="num text-xs text-slate-500">
+                筛选后 <b className="font-semibold text-slate-700">{filtered.length}</b> 项
+              </span>
             )}
           </>
         }
         actions={
           <>
-            {secondaryActions.length > 0 && <MoreMenu items={secondaryActions} label="更多任务操作" trigger={<span className="px-2 text-xs font-medium">更多</span>} buttonClassName="h-9 border border-slate-200 px-2" />}
+            {secondaryActions.length > 0 && (
+              <MoreMenu
+                items={secondaryActions}
+                label="更多任务操作"
+                trigger={<span className="px-1.5 text-xs font-medium">更多</span>}
+                buttonClassName="h-9 border border-slate-200 bg-white px-1"
+              />
+            )}
             {filtered.length > 0 && (
               <Button
                 variant="outline"
@@ -346,7 +359,7 @@ export default function Tasks() {
         }
       />
 
-      <div className="card flex min-h-0 flex-col overflow-visible md:max-h-[calc(100dvh-10.5rem)]">
+      <div className="card flex min-h-0 flex-col overflow-visible md:max-h-[calc(100dvh-14rem)]">
         <FilterBar
           filter={filter}
           onChange={(f) => { setFilter(f); }}

@@ -102,16 +102,16 @@ export function AttachmentModal({
         onChange={(e) => doUpload(e.target.files)}
       />
       {storage && (
-        <p className="mb-1 text-[11px] text-slate-400">
+        <p className="mb-1 text-[11px] text-slate-500">
           附件空间已用 {storage.usedMb}MB / {storage.quotaMb}MB（共 {storage.count} 个）
           {storage.used / storage.quota > 0.8 && (
             <span className="ml-1 font-medium text-amber-600">接近上限，建议清理旧文件</span>
           )}
         </p>
       )}
-      <p className="mb-2 text-[11px] text-slate-400">{ACCEPT_HINT}</p>
+      <p className="mb-2 text-[11px] leading-relaxed text-slate-500">{ACCEPT_HINT}</p>
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-400">加载中…</p>
+        <p className="py-8 text-center text-sm text-slate-500">加载中…</p>
       ) : list.length === 0 ? (
         <EmptyState title="还没有留档文件" hint={`上传 Excel、PPT、PDF 或图片，下次可直接点击下载。${ACCEPT_HINT}`} />
       ) : (
@@ -121,7 +121,7 @@ export function AttachmentModal({
               <span className="text-base">{/\.(xlsx|xls|csv)$/i.test(att.originalName) ? '📊' : /\.(pdf)$/i.test(att.originalName) ? '📕' : /\.(docx?|txt|md)$/i.test(att.originalName) ? '📄' : /\.(png|jpe?g|gif|webp)$/i.test(att.originalName) ? '🖼️' : '📎'}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-700" title={att.originalName}>{att.originalName}</p>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-500">
                   {fmtSize(att.size)} · {new Date(att.uploadedAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>

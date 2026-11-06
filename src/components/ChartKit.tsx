@@ -104,7 +104,7 @@ export function ChartCard({
             <span className="h-4 w-1 rounded-full bg-brand-500" />
             {title}
           </h3>
-          {subtitle && <p className="mt-1 text-xs text-slate-400">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p>}
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
@@ -172,7 +172,7 @@ export function Donut({
       {(centerValue !== undefined || centerLabel) && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-slate-800">{centerValue}</span>
-          {centerLabel && <span className="mt-0.5 text-xs text-slate-400">{centerLabel}</span>}
+          {centerLabel && <span className="mt-0.5 text-xs text-slate-500">{centerLabel}</span>}
         </div>
       )}
     </div>
@@ -197,7 +197,7 @@ export function LegendItem({
       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
       <span className="min-w-0 flex-1 truncate text-xs text-slate-600">{name}</span>
       <span className="text-xs font-semibold text-slate-800">{value}</span>
-      <span className="w-9 text-right text-[11px] text-slate-400">{pct}%</span>
+      <span className="num w-9 text-right text-[11px] text-slate-500">{pct}%</span>
     </div>
   );
 }

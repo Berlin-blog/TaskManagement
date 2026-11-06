@@ -104,14 +104,14 @@ export function MoreMenu({
         item.onClick();
       }}
       className={cn(
-        'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition',
+        'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition',
         item.danger ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-100',
         item.disabled && 'cursor-not-allowed opacity-40',
       )}
     >
       {item.icon && <Icon name={item.icon} className="h-4 w-4 shrink-0 opacity-70" />}
       <span className="min-w-0 flex-1">{item.label}</span>
-      {item.hint && <span className="shrink-0 text-[10px] text-slate-400">{item.hint}</span>}
+      {item.hint && <span className="shrink-0 text-[11px] text-slate-500">{item.hint}</span>}
     </button>
   );
 
@@ -148,6 +148,21 @@ export function MoreMenu({
             className,
           )}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+            const nodes = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? []);
+            if (nodes.length === 0) return;
+            e.preventDefault();
+            const current = nodes.indexOf(document.activeElement as HTMLElement);
+            const next = e.key === 'Home'
+              ? 0
+              : e.key === 'End'
+                ? nodes.length - 1
+                : e.key === 'ArrowDown'
+                  ? (current + 1 + nodes.length) % nodes.length
+                  : (current - 1 + nodes.length) % nodes.length;
+            nodes[next]?.focus();
+          }}
         >
           {children ?? items.map(renderItem)}
         </div>,

@@ -63,6 +63,7 @@ export function TaskTable({
   const [batchMoveOpen, setBatchMoveOpen] = useState(false);
   const [batchTarget, setBatchTarget] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const [density, setDensity] = useState<Density>(() => {
     try { return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'standard'; } catch { return 'standard'; }
@@ -115,6 +116,27 @@ export function TaskTable({
   };
 
   const selectedTasks = tasks.filter((t) => t.id && selected.has(t.id));
+
+  /** 靠近操作位置显示处理中，避免慢请求时重复点击 */
+  const runPending = async (id: number, action: () => Promise<void>) => {
+    setPendingIds((prev) => new Set(prev).add(id));
+    try {
+      await action();
+    } catch {
+      /* 写操作层已统一 toast */
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  const toggleCompleted = (task: Task, completed: boolean) => {
+    if (!task.id) return;
+    void runPending(task.id, () => setCompleted(task.id!, completed));
+  };
 
   const batchComplete = async () => {
     const ids = [...selected];
@@ -196,8 +218,8 @@ export function TaskTable({
     const items: MenuItem[] = [
       { label: '编辑任务', icon: 'edit', onClick: () => setEditTask(t) },
       done
-        ? { label: '撤销完成', icon: 'refresh', onClick: () => { void setCompleted(t.id!, false); } }
-        : { label: '标记完成', icon: 'check', onClick: () => { void setCompleted(t.id!, true); } },
+        ? { label: '撤销完成', icon: 'refresh', onClick: () => toggleCompleted(t, false) }
+        : { label: '标记完成', icon: 'check', onClick: () => toggleCompleted(t, true) },
       ...statusItems,
       { label: '移动到其他周…', icon: 'move', onClick: () => { setMoveTask(t); setMoveTarget(''); } },
     ];
@@ -216,34 +238,35 @@ export function TaskTable({
   };
 
   const thPad = density === 'compact' ? 'py-2' : 'py-2.5';
-  const tdPad = density === 'compact' ? 'py-1.5' : 'py-2.5';
+  const tdPad = density === 'compact' ? 'py-1.5' : 'py-3';
+  const selectedOnPage = tasks.filter((t) => t.id && selected.has(t.id)).length;
 
   return (
     <div className={cn('overflow-visible', embedded ? 'flex min-h-0 flex-1 flex-col' : 'card flex flex-col')}>
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-1.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
-          <span className="inline-flex items-center gap-1 font-medium text-slate-500">
-            <Icon name="sparkles" className="h-3.5 w-3.5 text-brand-400" />
-            {sortKey === 'smart' ? '未完成优先 · 延期在前' : `按${SORT_LABELS[sortKey]}排序`}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 px-3 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1.5 font-medium text-slate-600">
+            <Icon name="sparkles" className="h-3.5 w-3.5 text-brand-500" />
+            {sortKey === 'smart' ? '智能排序：未完成优先，延期在前' : `按${SORT_LABELS[sortKey]}排序`}
           </span>
           <span className="hidden text-slate-300 sm:inline">·</span>
-          <span className="hidden sm:inline">共 {tasks.length} 行</span>
+          <span className="num hidden sm:inline">共 {tasks.length} 行</span>
           {sortKey !== 'smart' && onResetSort && (
             <button
               type="button"
               onClick={onResetSort}
               className="rounded text-brand-600 transition hover:text-brand-700 hover:underline"
             >
-              恢复未完成优先
+              恢复智能排序
             </button>
           )}
           {hiddenDone > 0 && onShowAll && (
             <button
               type="button"
               onClick={onShowAll}
-              className="rounded-md bg-slate-100 px-1.5 py-0.5 font-medium text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+              className="rounded-md bg-slate-100 px-2 py-1 font-medium text-slate-600 transition hover:bg-slate-200 hover:text-slate-800"
             >
-              已完成 {hiddenDone} 项已隐藏 · 查看
+              另有 {hiddenDone} 项已完成 · 查看
             </button>
           )}
         </div>
@@ -259,8 +282,8 @@ export function TaskTable({
                 aria-pressed={density === value}
                 onClick={() => setDensity(value)}
                 className={cn(
-                  'rounded-md px-2 py-0.5 text-[11px] font-medium transition',
-                  density === value ? 'bg-white text-slate-700 shadow-soft' : 'text-slate-400 hover:text-slate-600',
+                  'h-6 rounded-md px-2 text-[11px] font-medium transition',
+                  density === value ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700',
                 )}
               >
                 {label}
@@ -268,12 +291,12 @@ export function TaskTable({
             ))}
           </div>
           <details className="relative hidden md:block">
-            <summary className="btn-outline h-7 cursor-pointer list-none gap-1 px-2 text-[11px] [&::-webkit-details-marker]:hidden">
+            <summary className="btn-outline h-7 min-h-0 cursor-pointer list-none gap-1 px-2 text-[11px] [&::-webkit-details-marker]:hidden">
               <Icon name="columns" className="h-3.5 w-3.5" />
               列显示
             </summary>
-            <div className="absolute right-0 top-full z-30 mt-1 w-48 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
-              <p className="px-1.5 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">可选列</p>
+            <div className="absolute right-0 top-full z-30 mt-1 w-52 rounded-xl border border-slate-200/80 bg-white p-2 shadow-[var(--shadow-float)]">
+              <p className="px-1.5 pb-1.5 text-[11px] font-semibold tracking-wide text-slate-500">可选列</p>
               <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-2 text-sm text-slate-600 hover:bg-slate-50">
                 <input
                   type="checkbox"
@@ -301,24 +324,24 @@ export function TaskTable({
       </div>
 
       {/* 桌面表格 */}
-      <div ref={scrollRef} className="hidden min-h-0 overflow-auto rounded-b-xl md:block md:flex-1">
-        <table className="w-full min-w-[980px] table-fixed text-[13px]">
+      <div ref={scrollRef} className="hidden min-h-0 overflow-auto rounded-b-2xl md:block md:flex-1">
+        <table className="w-full min-w-[960px] table-fixed text-[13px]">
           <thead>
-            <tr className="sticky top-0 z-10 border-b border-slate-200/70 bg-slate-50/95 text-left text-[11px] font-medium text-slate-500 backdrop-blur">
-              <th className="w-10 px-2 py-2 text-center">
+            <tr className="table-head sticky top-0 z-10 text-left backdrop-blur">
+              <th className="w-11 px-2 py-2.5 text-center">
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5 cursor-pointer rounded accent-brand-600" title="全选/取消" aria-label="全选" />
               </th>
               <Th onClick={() => onToggleSort('seq')} active={sortKey === 'seq'} desc={sortDesc} className="w-[52px] text-center" pad={thPad}>序号</Th>
               <Th onClick={() => onToggleSort('priority')} active={sortKey === 'priority'} desc={sortDesc} className="w-[78px] text-center" pad={thPad}>优先级</Th>
-              <th className={cn('min-w-[240px] px-2 font-medium', thPad)}>名称</th>
-              <th className={cn('w-[92px] px-2 font-medium', thPad)}>需求人</th>
-              <Th onClick={() => onToggleSort('estimatedDate')} active={sortKey === 'estimatedDate'} desc={sortDesc} className="w-[136px]" pad={thPad}>日期</Th>
-              <th className={cn('w-[88px] px-2 font-medium', thPad)}>状态</th>
+              <th className={cn('min-w-[240px] px-2 font-semibold', thPad)}>任务名称</th>
+              <th className={cn('w-[96px] px-2 font-semibold', thPad)}>需求人</th>
+              <Th onClick={() => onToggleSort('estimatedDate')} active={sortKey === 'estimatedDate'} desc={sortDesc} className="w-[148px]" pad={thPad}>日期</Th>
+              <th className={cn('w-[96px] px-2 font-semibold', thPad)}>状态</th>
               {columns.completedAt && (
                 <Th onClick={() => onToggleSort('completedAt')} active={sortKey === 'completedAt'} desc={sortDesc} className="w-[100px]" pad={thPad}>完成时间</Th>
               )}
-              {columns.remark && <th className={cn('w-[150px] px-2 font-medium', thPad)}>备注</th>}
-              <th className={cn('w-[116px] px-2 text-right font-medium', thPad)}>操作</th>
+              {columns.remark && <th className={cn('w-[150px] px-2 font-semibold', thPad)}>备注</th>}
+              <th className={cn('w-[112px] px-2 text-right font-semibold', thPad)}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -328,23 +351,24 @@ export function TaskTable({
               const anomaly = isAnomaly(t);
               const done = isDone(t);
               const hint = dueHint(t);
+              const pending = pendingIds.has(t.id!);
               return (
                 <tr key={t.id} className={cn(
-                  'group/row border-b border-slate-50 transition-colors hover:bg-slate-50/70',
-                  anomaly && 'bg-rose-50/40',
-                  done && 'bg-slate-50/40',
+                  'group/row border-b border-slate-100/80 transition-colors last:border-b-0 hover:bg-slate-50/70',
+                  anomaly && 'bg-rose-50/30',
+                  done && 'bg-slate-50/50',
                 )}>
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-2 py-3 text-center">
                     <input type="checkbox" checked={selected.has(t.id!)} onChange={() => toggleSelect(t.id!)} className="h-3.5 w-3.5 cursor-pointer rounded accent-brand-600" aria-label={`选择 ${t.title}`} />
                   </td>
-                  <td className={cn('px-2 text-center text-xs text-slate-400 tabular-nums', tdPad)} title="任务序号">{t.seq}</td>
+                  <td className={cn('num px-2 text-center text-xs text-slate-500', tdPad)} title="任务序号">{t.seq}</td>
 
                   <td className={cn('px-2 text-center', tdPad)}>
                     <select
                       value={t.priority}
                       onChange={(e) => updateTaskField(t.id!, 'priority', Number(e.target.value))}
                       className={cn(
-                        'max-w-full cursor-pointer rounded-full px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset outline-none transition hover:opacity-80',
+                        'h-6 max-w-full cursor-pointer rounded-full px-1.5 text-[11px] font-semibold ring-1 ring-inset outline-none transition hover:opacity-80 focus:ring-2 focus:ring-brand-300',
                         priorityBadgeClass(t.priority),
                       )}
                       style={{ appearance: 'none', border: 'none' }}
@@ -358,55 +382,60 @@ export function TaskTable({
                   </td>
 
                   <td className={cn('px-2', tdPad)}>
-                    <div className="flex items-start gap-1.5">
+                    <div className="flex items-start gap-2">
                       <button
                         type="button"
-                        onClick={() => setCompleted(t.id!, !done)}
+                        disabled={pending}
+                        onClick={() => toggleCompleted(t, !done)}
                         className={cn(
-                          'mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition',
+                          'mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition disabled:cursor-wait',
                           done
-                            ? 'border-emerald-500 bg-emerald-500 text-white'
-                            : 'border-slate-300 bg-white text-slate-300 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-500 group-hover/row:border-emerald-300 group-hover/row:text-emerald-400',
+                            ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
+                            : 'border-slate-300 bg-white text-transparent hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-500 group-hover/row:border-emerald-300',
+                          pending && 'opacity-60',
                         )}
                         title={done ? '点击撤销完成' : '点击标记完成'}
                         aria-label={done ? '撤销完成' : '标记完成'}
                         aria-pressed={done}
+                        aria-busy={pending}
                       >
-                        <Icon name="check" className="h-3 w-3" strokeWidth={3} />
+                        {pending
+                          ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+                          : <Icon name="check" className="h-3 w-3" strokeWidth={3} />}
                       </button>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                           <InlineText
                             value={t.title}
                             onSave={(v) => updateTaskField(t.id!, 'title', v)}
-                            className={cn('min-w-0 break-words font-medium', done ? 'text-slate-400 line-through' : 'text-slate-800')}
+                            className={cn('line-clamp-2 min-w-0 break-words text-[13.5px] font-semibold leading-5', done ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-900')}
                           />
                           {showWeek && (
                             <span
-                              className="shrink-0 whitespace-nowrap rounded bg-slate-50 px-1.5 py-0.5 text-[10px] leading-none text-slate-400 ring-1 ring-inset ring-slate-200/70"
+                              className="shrink-0 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[11px] leading-none text-slate-500 ring-1 ring-inset ring-slate-200"
                               title={t.weekName}
                             >
                               {displayWeekName(t.weekName)}
                             </span>
                           )}
                           {t.isPeriodic && <span className="shrink-0 text-[10px] text-brand-500" title="周期任务">⟳</span>}
-                          {anomaly && <span className="shrink-0 rounded bg-rose-50 px-1 text-[10px] text-rose-600" title="已完成但缺少完成时间">补填</span>}
+                          {anomaly && <span className="shrink-0 rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-medium text-rose-600" title="已完成但缺少完成时间">补完成时间</span>}
                         </div>
                       </div>
                     </div>
                   </td>
 
                   <td className={cn('px-2', tdPad)}>
-                    <InlineText value={t.requester} onSave={(v) => updateTaskField(t.id!, 'requester', v)} className="block truncate text-slate-600" />
+                    <InlineText value={t.requester} onSave={(v) => updateTaskField(t.id!, 'requester', v)} className="block truncate text-[12.5px] text-slate-600" />
                   </td>
 
                   <td className={cn('group/date relative whitespace-nowrap px-2', tdPad)}>
                     <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1">
+                      <div className="num flex items-center gap-1 text-[12.5px]">
                         <InlineDate
                           value={t.estimatedDateText}
                           onSave={(v) => updateDateField(t.id!, 'estimatedDate', 'estimatedDateText', v)}
-                          className={cn(t.revisedDateText ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-600')}
+                          className={cn(t.revisedDateText ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700')}
                         />
                         {t.revisedDateText ? (
                           <>
@@ -414,7 +443,7 @@ export function TaskTable({
                             <InlineDate
                               value={t.revisedDateText}
                               onSave={(v) => updateDateField(t.id!, 'revisedDate', 'revisedDateText', v)}
-                              className="font-medium text-amber-600"
+                              className="font-semibold text-amber-700"
                             />
                           </>
                         ) : (
@@ -424,7 +453,7 @@ export function TaskTable({
                         )}
                       </div>
                       {hint && (
-                        <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium', DUE_URGENCY_TEXT_CLASS[dueUrgency(t)])}>
+                        <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium', DUE_URGENCY_TEXT_CLASS[dueUrgency(t)])}>
                           <span className={cn('h-1.5 w-1.5 rounded-full', DUE_URGENCY_DOT_CLASS[dueUrgency(t)])} />
                           {hint}
                         </span>
@@ -433,14 +462,14 @@ export function TaskTable({
                   </td>
 
                   <td className={cn('whitespace-nowrap px-2', tdPad)}>
-                    <span
-                      className={cn('inline-flex items-center gap-1.5 text-xs font-medium', STATUS_TEXT_CLASS[ds])}
+                    <Badge
+                      className={cn('px-2 py-0.5 text-[11px]', STATUS_BADGE_CLASS[ds])}
                       title={delayed ? `已延期 ${overdueDays(t)} 天` : undefined}
                     >
                       <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[ds])} />
                       {DISPLAY_STATUS_LABELS[ds]}
-                      {delayed && <span className="text-[10px] font-normal text-orange-500">{overdueDays(t)}天</span>}
-                    </span>
+                      {delayed && <span className="num font-normal">{overdueDays(t)}天</span>}
+                    </Badge>
                   </td>
 
                   {columns.completedAt && (
@@ -449,14 +478,14 @@ export function TaskTable({
                         value={t.completedAtText || t.completedAt || ''}
                         onSave={(v) => updateDateField(t.id!, 'completedAt', 'completedAtText', v)}
                         placeholder="26.9.7"
-                        className={cn('text-slate-600', anomaly && 'font-medium text-rose-600')}
+                        className={cn('num text-slate-600', anomaly && 'font-medium text-rose-600')}
                       />
                     </td>
                   )}
 
                   {columns.remark && (
                     <td className={cn('px-2', tdPad)}>
-                      <InlineText value={t.remark} onSave={(v) => updateTaskField(t.id!, 'remark', v)} className="text-xs text-slate-500" multiline />
+                      <InlineText value={t.remark} onSave={(v) => updateTaskField(t.id!, 'remark', v)} className="text-xs text-slate-600" multiline />
                     </td>
                   )}
 
@@ -465,12 +494,16 @@ export function TaskTable({
                       {!done && t.status !== 'cancelled' && (
                         <button
                           type="button"
-                          onClick={() => setCompleted(t.id!, true)}
-                          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 md:opacity-0 md:focus-visible:opacity-100 md:group-hover/row:opacity-100"
+                          disabled={pending}
+                          onClick={() => toggleCompleted(t, true)}
+                          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-50 md:opacity-0 md:focus-visible:opacity-100 md:group-hover/row:opacity-100"
                           title="标记为已完成"
+                          aria-busy={pending}
                         >
-                          <Icon name="check" className="h-3.5 w-3.5" />
-                          完成
+                          {pending
+                            ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+                            : <Icon name="check" className="h-3.5 w-3.5" />}
+                          {pending ? '保存中' : '完成'}
                         </button>
                       )}
                       <MoreMenu items={rowMenuItems(t)} label={`更多操作：${t.title}`} />
@@ -499,10 +532,10 @@ export function TaskTable({
           const dueText = t.revisedDateText || t.estimatedDateText;
           return (
             <div key={t.id} className={cn(
-              'min-w-0 overflow-hidden rounded-xl border bg-white',
-              delayed ? 'border-orange-200' : 'border-slate-100',
+              'min-w-0 overflow-hidden rounded-xl border bg-white shadow-[0_1px_2px_rgba(15,23,42,.03)]',
+              delayed ? 'border-orange-200' : 'border-slate-200/80',
             )}>
-              <div className="flex items-start gap-2 p-3 pb-2">
+              <div className="flex items-start gap-2.5 p-3 pb-2.5">
                 <input
                   type="checkbox"
                   checked={selected.has(t.id!)}
@@ -517,23 +550,24 @@ export function TaskTable({
                   aria-expanded={expanded}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className={cn('min-w-0 break-words text-sm font-medium leading-snug', done ? 'text-slate-400 line-through' : 'text-slate-800')}>
+                    <p className={cn('min-w-0 break-words text-[14px] font-semibold leading-snug', done ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-900')}>
                       {t.title}
                       {t.isPeriodic && <span className="ml-1 text-[10px] text-brand-500">⟳</span>}
                     </p>
-                    <span className="flex shrink-0 items-center gap-0.5">
+                    <span className="flex shrink-0 items-center gap-1">
                       <Badge className={STATUS_BADGE_CLASS[ds]}>{DISPLAY_STATUS_LABELS[ds]}</Badge>
-                      <Icon name="chevron-down" className={cn('h-3.5 w-3.5 text-slate-300 transition-transform', expanded && 'rotate-180')} />
+                      <Icon name="chevron-down" className={cn('h-3.5 w-3.5 text-slate-500 transition-transform', expanded && 'rotate-180')} />
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                     <Badge className={priorityBadgeClass(t.priority)}>P{t.priority} {priorityLabel(t.priority, settings)}</Badge>
-                    <span className="inline-flex items-center gap-1 text-slate-500">
-                      <Icon name="calendar" className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="num inline-flex items-center gap-1 text-slate-600">
+                      <Icon name="calendar" className="h-3.5 w-3.5 text-slate-500" />
                       {dueText || '未设日期'}
                     </span>
+                    <span className="min-w-0 truncate text-slate-500">{t.requester || '未指定需求人'}</span>
                     {t.revisedDateText && t.estimatedDateText && (
-                      <span className="text-[10px] text-slate-400">预估 {t.estimatedDateText}</span>
+                      <span className="num text-[11px] text-slate-500">预估 {t.estimatedDateText}</span>
                     )}
                     {hint && (
                       <span className={cn('inline-flex items-center gap-1 font-medium', DUE_URGENCY_TEXT_CLASS[dueUrgency(t)])}>
@@ -546,32 +580,32 @@ export function TaskTable({
               </div>
 
               {expanded && (
-                <div className="mx-3 mb-2 space-y-2 rounded-lg bg-slate-50/80 p-2.5 text-xs">
+                <div className="mx-3 mb-2.5 space-y-2.5 rounded-lg border border-slate-200/60 bg-slate-50/80 p-3 text-xs">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-400">需求人</span>
-                    <span className="min-w-0 truncate text-right text-slate-700">{t.requester || '—'}</span>
+                    <span className="text-slate-500">需求人</span>
+                    <span className="min-w-0 truncate text-right font-medium text-slate-700">{t.requester || '—'}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-400">所属周</span>
-                    <span className="min-w-0 truncate text-right text-slate-700" title={t.weekName}>{displayWeekName(t.weekName)}</span>
+                    <span className="text-slate-500">所属周</span>
+                    <span className="min-w-0 truncate text-right font-medium text-slate-700" title={t.weekName}>{displayWeekName(t.weekName)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="shrink-0 text-slate-400">预估 / 修订</span>
-                    <span className="min-w-0 text-right text-slate-700">
+                    <span className="shrink-0 text-slate-500">预估 / 修订</span>
+                    <span className="num min-w-0 text-right text-slate-700">
                       {t.estimatedDateText || '—'}
-                      {t.revisedDateText && <span className="ml-1 text-amber-600"> / {t.revisedDateText}</span>}
+                      {t.revisedDateText && <span className="ml-1 font-medium text-amber-700"> / {t.revisedDateText}</span>}
                     </span>
                   </div>
                   {t.completedAtText && (
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-400">完成时间</span>
-                      <span className="text-emerald-600">{t.completedAtText}</span>
+                      <span className="text-slate-500">完成时间</span>
+                      <span className="num font-medium text-emerald-700">{t.completedAtText}</span>
                     </div>
                   )}
                   {t.remark && (
                     <div>
-                      <span className="text-slate-400">备注</span>
-                      <p className="mt-0.5 whitespace-pre-wrap break-words leading-relaxed text-slate-600">{t.remark}</p>
+                      <span className="text-slate-500">备注</span>
+                      <p className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-slate-600">{t.remark}</p>
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -591,10 +625,13 @@ export function TaskTable({
                 <Button
                   variant={done ? 'ghost' : 'outline'}
                   className={cn('min-h-10 flex-1 text-xs', done ? 'text-slate-400' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50')}
-                  onClick={() => setCompleted(t.id!, !done)}
+                  onClick={() => toggleCompleted(t, !done)}
+                  disabled={pendingIds.has(t.id!)}
                 >
-                  <Icon name="check" className="h-4 w-4" />
-                  {done ? '撤销完成' : '标记完成'}
+                  {pendingIds.has(t.id!)
+                    ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+                    : <Icon name="check" className="h-4 w-4" />}
+                  {pendingIds.has(t.id!) ? '保存中…' : done ? '撤销完成' : '标记完成'}
                 </Button>
                 <MoreMenu
                   items={rowMenuItems(t)}
@@ -609,10 +646,17 @@ export function TaskTable({
       </div>
 
       {selected.size > 0 && (
-        <div className="fixed inset-x-3 bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] z-40 mx-auto max-w-3xl rounded-xl border border-brand-100 bg-white/95 p-2 shadow-xl backdrop-blur md:bottom-6">
+        <div
+          className="fixed inset-x-3 bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] z-40 mx-auto max-w-3xl rounded-xl border border-brand-200 bg-white/95 p-2.5 shadow-[var(--shadow-float)] backdrop-blur md:bottom-6"
+          role="region"
+          aria-label="批量操作"
+        >
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <div className="flex items-center justify-between gap-2 sm:contents">
-              <span className="shrink-0 px-1 text-sm font-medium text-brand-700">已选 {selected.size} 项</span>
+              <div className="min-w-0 px-1">
+                <p className="text-sm font-semibold text-brand-800" aria-live="polite">已选 {selected.size} 项</p>
+                <p className="num mt-0.5 text-[11px] text-slate-500">本页已选 {selectedOnPage} / {tasks.length} 项 · 操作作用于当前选择</p>
+              </div>
               <Button variant="ghost" className="min-h-8 shrink-0 text-xs sm:order-last sm:min-h-9" onClick={() => setSelected(new Set())}>取消选择</Button>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:contents">
@@ -751,20 +795,47 @@ function Th({
   );
 }
 
+type InlineSaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+/** 行内字段保存反馈：处理中 / 已保存 / 失败，紧贴被修改的字段 */
+function InlineSaveFeedback({ state }: { state: InlineSaveState }) {
+  if (state === 'idle') return null;
+  if (state === 'saving') {
+    return <span className="ml-1 inline-block h-2.5 w-2.5 shrink-0 animate-spin rounded-full border-[1.5px] border-slate-300 border-t-brand-600 align-middle" title="保存中…" aria-label="保存中" />;
+  }
+  if (state === 'saved') {
+    return <span className="ml-1 inline-flex align-middle text-emerald-600" title="已保存" aria-label="已保存"><Icon name="check" className="h-3 w-3" strokeWidth={3} /></span>;
+  }
+  return <span className="ml-1 inline-flex align-middle text-rose-600" title="保存失败，点击字段重试" aria-label="保存失败"><Icon name="alert" className="h-3 w-3" /></span>;
+}
+
 function InlineText({
   value, onSave, className, multiline,
 }: {
   value: string;
-  onSave: (v: string) => void;
+  onSave: (v: string) => void | Promise<void>;
   className?: string;
   multiline?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(value);
+  const [saveState, setSaveState] = useState<InlineSaveState>('idle');
+  const timerRef = useRef<number | null>(null);
 
-  const save = () => {
+  useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
+
+  const save = async () => {
     setEditing(false);
-    if (v !== value) Promise.resolve(onSave(v)).catch(() => { /* 已统一提示 */ });
+    if (v === value) return;
+    setSaveState('saving');
+    try {
+      await onSave(v);
+      setSaveState('saved');
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => setSaveState('idle'), 1600);
+    } catch {
+      setSaveState('error');
+    }
   };
 
   if (editing) {
@@ -775,7 +846,7 @@ function InlineText({
           rows={2}
           value={v}
           onChange={(e) => setV(e.target.value)}
-          onBlur={save}
+          onBlur={() => { void save(); }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') { setV(value); setEditing(false); }
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) (e.target as HTMLTextAreaElement).blur();
@@ -789,7 +860,7 @@ function InlineText({
         autoFocus
         value={v}
         onChange={(e) => setV(e.target.value)}
-        onBlur={save}
+        onBlur={() => { void save(); }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           if (e.key === 'Escape') { setV(value); setEditing(false); }
@@ -803,13 +874,15 @@ function InlineText({
       className={cn(
         'cursor-text rounded px-0.5 py-0.5 transition hover:bg-white hover:ring-1 hover:ring-slate-200',
         !multiline && 'inline-block',
+        saveState === 'error' && 'text-rose-600',
         className,
       )}
       style={multiline ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' } : undefined}
-      onClick={() => { setV(value); setEditing(true); }}
-      title="点击编辑"
+      onClick={() => { if (saveState !== 'saving') { setV(value); setEditing(true); } }}
+      title={saveState === 'error' ? '上次保存失败，点击重试' : '点击编辑'}
     >
-      {value || <span className="text-slate-300">{multiline ? '—' : '空'}</span>}
+      {value || <span className="text-slate-400">—</span>}
+      <InlineSaveFeedback state={saveState} />
     </span>
   );
 }
@@ -818,17 +891,30 @@ function InlineDate({
   value, onSave, className, prefix, placeholder,
 }: {
   value: string;
-  onSave: (v: string) => void;
+  onSave: (v: string) => void | Promise<void>;
   className?: string;
   prefix?: string;
   placeholder?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(value);
+  const [saveState, setSaveState] = useState<InlineSaveState>('idle');
+  const timerRef = useRef<number | null>(null);
 
-  const save = () => {
+  useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
+
+  const save = async () => {
     setEditing(false);
-    if (v !== value) Promise.resolve(onSave(v)).catch(() => { /* 已统一提示 */ });
+    if (v === value) return;
+    setSaveState('saving');
+    try {
+      await onSave(v);
+      setSaveState('saved');
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => setSaveState('idle'), 1600);
+    } catch {
+      setSaveState('error');
+    }
   };
 
   if (editing) {
@@ -837,7 +923,7 @@ function InlineDate({
         autoFocus
         value={v}
         onChange={(e) => setV(e.target.value)}
-        onBlur={save}
+        onBlur={() => { void save(); }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           if (e.key === 'Escape') { setV(value); setEditing(false); }
@@ -849,12 +935,17 @@ function InlineDate({
   }
   return (
     <span
-      className={cn('inline-block cursor-text rounded px-0.5 py-0.5 transition hover:bg-white hover:ring-1 hover:ring-slate-200', className)}
-      onClick={() => { setV(value); setEditing(true); }}
-      title="点击编辑"
+      className={cn(
+        'cursor-text rounded px-0.5 py-0.5 transition hover:bg-white hover:ring-1 hover:ring-slate-200',
+        saveState === 'error' && 'text-rose-600',
+        className,
+      )}
+      onClick={() => { if (saveState !== 'saving') { setV(value); setEditing(true); } }}
+      title={saveState === 'error' ? '上次保存失败，点击重试' : '点击编辑'}
     >
-      {prefix && <span className="text-slate-400">{prefix} </span>}
-      {value || <span className="text-slate-300">—</span>}
+      {prefix && <span className="text-slate-500">{prefix} </span>}
+      {value || <span className="text-slate-400">—</span>}
+      <InlineSaveFeedback state={saveState} />
     </span>
   );
 }
@@ -863,14 +954,27 @@ function InlineDate({
  * 空修订时间的极简入口：默认隐藏，悬停整格时浮现「＋修订」，
  * 点击后就地输入，避免每行都露出占位符影响表格观感。
  */
-function AddRevisedDate({ onSave }: { onSave: (v: string) => void }) {
+function AddRevisedDate({ onSave }: { onSave: (v: string) => void | Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState('');
+  const [saveState, setSaveState] = useState<InlineSaveState>('idle');
+  const timerRef = useRef<number | null>(null);
 
-  const save = () => {
+  useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
+
+  const save = async () => {
     setEditing(false);
     const next = v.trim();
-    if (next) Promise.resolve(onSave(next)).catch(() => { /* 已统一提示 */ });
+    if (!next) return;
+    setSaveState('saving');
+    try {
+      await onSave(next);
+      setSaveState('saved');
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => setSaveState('idle'), 1600);
+    } catch {
+      setSaveState('error');
+    }
   };
 
   if (editing) {
@@ -879,24 +983,27 @@ function AddRevisedDate({ onSave }: { onSave: (v: string) => void }) {
         autoFocus
         value={v}
         onChange={(e) => setV(e.target.value)}
-        onBlur={save}
+        onBlur={() => { void save(); }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           if (e.key === 'Escape') { setV(''); setEditing(false); }
         }}
         placeholder="26.9.7"
-        className="input w-[86px] px-1.5 py-0.5 text-xs text-amber-600"
+        className="input w-[86px] px-1.5 py-0.5 text-xs text-amber-700"
       />
     );
   }
   return (
-    <button
-      type="button"
-      onClick={() => { setV(''); setEditing(true); }}
-      className="hidden shrink-0 text-[10px] text-slate-300 transition hover:text-amber-500 group-hover/date:inline group-focus-within/date:inline"
-      title="添加修订时间"
-    >
-      ＋修订
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => { setV(''); setEditing(true); }}
+        className="hidden shrink-0 text-[10px] text-slate-500 transition hover:text-amber-600 group-hover/date:inline group-focus-within/date:inline"
+        title="添加修订时间"
+      >
+        ＋修订
+      </button>
+      <InlineSaveFeedback state={saveState} />
+    </>
   );
 }

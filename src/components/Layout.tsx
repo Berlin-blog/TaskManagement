@@ -55,6 +55,7 @@ export default function Layout() {
   const [newWeekDraft, setNewWeekDraft] = useState('');
   const [manageOpen, setManageOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [scopeOpen, setScopeOpen] = useState(false);
   // 选了「还没有任何周」的年份时记住它，用于预填新建周、显示空态
   const [pendingYear, setPendingYear] = useState<number | null>(null);
 
@@ -247,6 +248,12 @@ export default function Layout() {
 
   const isActive = (to: string) => (to === '/' ? location.pathname === '/' : location.pathname.startsWith(to));
 
+  const currentWeekStats = (weekStats ?? []).find((s) => s.week === currentWeek);
+  const currentScopeLabel = currentWeek ? displayWeekName(currentWeek) : (activeYear ? `${activeYear}年 · 全部周` : '全部周');
+  const currentScopeMeta = currentWeekStats && currentWeekStats.total > 0
+    ? `${currentWeekStats.completed}/${currentWeekStats.total} 已完成`
+    : activeYear ? `${weeksInActiveYear.length} 个周` : '跨周查看';
+
   const renderNavItem = (n: NavItem, compact = false) => (
     <NavLink
       key={n.to}
@@ -254,41 +261,100 @@ export default function Layout() {
       end={n.to === '/'}
       className={() => cn(
         compact
-          ? 'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-[10px] font-medium transition'
-          : 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+          ? 'flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium transition'
+          : 'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
         isActive(n.to)
-          ? compact ? 'text-brand-700' : 'bg-brand-50 text-brand-700'
-          : compact ? 'text-slate-400 active:bg-slate-100' : 'text-slate-600 hover:bg-slate-100',
+          ? compact ? 'text-brand-700' : 'bg-brand-50/80 text-brand-700'
+          : compact ? 'text-slate-500 active:bg-slate-100' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900',
       )}
     >
-      <Icon name={n.icon} className={compact ? 'h-5 w-5' : 'h-[18px] w-[18px]'} />
+      {!compact && isActive(n.to) && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-brand-600" />}
+      <Icon name={n.icon} className={compact ? 'h-5 w-5' : 'h-[18px] w-[18px] shrink-0'} strokeWidth={isActive(n.to) ? 2.1 : 1.8} />
       <span className={compact ? 'leading-none' : undefined}>{compact ? n.short : n.label}</span>
     </NavLink>
   );
 
+  const yearSelect = (compact = false) => (
+    <select
+      value={activeYear ?? ''}
+      onChange={(e) => handleYearChange(e.target.value)}
+      className={cn(
+        'min-w-0 cursor-pointer rounded-lg border-0 bg-transparent font-medium text-slate-700 outline-none transition hover:bg-slate-100 focus:bg-slate-100',
+        compact ? 'h-8 w-[72px] px-1 text-xs' : 'h-8 w-[84px] px-1.5 text-xs',
+      )}
+      aria-label="选择年份"
+    >
+      <option value="">全部年份</option>
+      {years.map((y) => (
+        <option key={y} value={y}>{y}年</option>
+      ))}
+    </select>
+  );
+
+  const weekSelect = (compact = false) => (
+    <select
+      value={currentWeek ?? ''}
+      onChange={(e) => handleWeekSelect(e.target.value)}
+      className={cn(
+        'min-w-0 flex-1 cursor-pointer rounded-lg border-0 bg-transparent font-medium text-slate-800 outline-none transition hover:bg-slate-100 focus:bg-slate-100',
+        compact ? 'h-8 px-1 text-xs' : 'h-8 px-1.5 text-xs',
+      )}
+      aria-label="选择当前周"
+    >
+      {renderWeekOptions()}
+    </select>
+  );
+
   return (
     <div className="flex min-h-screen">
+      <a href="#main-content" className="skip-link">跳到主要内容</a>
+
       {/* 侧边栏（桌面） */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-slate-200/80 bg-white md:flex">
-        <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-soft">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-slate-200/70 bg-white md:flex">
+        <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-[0_4px_12px_-4px_rgba(37,72,216,.5)]">
             <Icon name="check" className="h-5 w-5" strokeWidth={2.4} />
           </div>
-          <div>
-            <p className="text-sm font-semibold leading-tight text-slate-800">任务排期</p>
-            <p className="text-[11px] text-slate-400">个人管理工具</p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-tight text-slate-900">任务排期</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">个人管理工具</p>
           </div>
         </div>
 
+        {/* 当前工作范围：放在导航上下文中，替代顶栏重复的年份/周控件 */}
+        <div className="mx-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5">
+          <div className="mb-1.5 flex items-center justify-between px-1">
+            <span className="text-[11px] font-semibold text-slate-500">当前工作周</span>
+            <button
+              type="button"
+              onClick={() => { setNewWeekDraft(''); setNewWeekOpen(true); }}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-slate-500 transition hover:bg-white hover:text-brand-600"
+              title="新建周"
+              aria-label="新建周"
+            >
+              <Icon name="plus" className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-0.5 rounded-lg border border-slate-200/80 bg-white p-0.5">
+            {yearSelect()}
+            <span className="h-4 w-px bg-slate-200" />
+            {weekSelect()}
+          </div>
+          <p className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] text-slate-500">
+            <span className={cn('h-1.5 w-1.5 rounded-full', connectionMeta.dot, connection === 'checking' && 'animate-pulse')} />
+            {currentScopeMeta} · 切换后打开任务页
+          </p>
+        </div>
+
         <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="主导航">
-          <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-300">常用</p>
+          <p className="mb-1.5 px-3 text-[11px] font-semibold tracking-[-0.01em] text-slate-500">工作台</p>
           <div className="space-y-0.5">{COMMON_NAV.map((n) => renderNavItem(n))}</div>
 
           <button
             type="button"
             onClick={() => setManageOpen((v) => !v)}
             aria-expanded={manageOpen}
-            className="mt-5 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-300 transition hover:text-slate-500"
+            className="mt-5 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold text-slate-500 transition hover:text-slate-700"
           >
             <span>管理</span>
             <Icon name="chevron-down" className={cn('h-3.5 w-3.5 transition-transform', !manageOpen && '-rotate-90')} />
@@ -298,46 +364,34 @@ export default function Layout() {
           </div>
         </nav>
 
-        <div className="border-t border-slate-100 px-5 py-3.5">
-          <div className="flex items-center gap-2 text-[11px] text-slate-400">
-            <span className={cn('h-2 w-2 rounded-full', connectionMeta.dot, connection === 'checking' && 'animate-pulse')} />
-            {connectionMeta.text}
-          </div>
-          <p className="mt-1 text-[10px] text-slate-300">数据保存在本地 MySQL</p>
+        <div className="mx-3 mb-3 rounded-xl border border-slate-200/70 px-3 py-2.5">
+          <button
+            type="button"
+            onClick={() => navigate('/import-export')}
+            className="flex w-full items-center gap-2 text-left text-[11px] text-slate-600 transition hover:text-slate-900"
+          >
+            <span className={cn('h-2 w-2 shrink-0 rounded-full', connectionMeta.dot, connection === 'checking' && 'animate-pulse')} />
+            <span className="flex-1">{connectionMeta.text}</span>
+            <Icon name="arrow-right" className="h-3 w-3 text-slate-500" />
+          </button>
+          <p className="mt-1.5 text-[11px] text-slate-500">数据保存在本地 MySQL</p>
         </div>
       </aside>
 
       {/* 主区 */}
-      <div className="flex min-w-0 flex-1 flex-col md:pl-60">
-        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-          {/* 桌面顶栏 */}
-          <div className="hidden h-14 items-center gap-3 px-5 md:flex">
-            <div className="flex shrink-0 items-center rounded-lg border border-slate-200 bg-white p-0.5 shadow-soft" title="当前年份与周">
-              <select
-                value={activeYear ?? ''}
-                onChange={(e) => handleYearChange(e.target.value)}
-                className="h-7 w-[88px] rounded-md bg-transparent px-2 text-xs text-slate-600 outline-none hover:bg-slate-50 focus:bg-slate-50"
-                aria-label="选择年份"
-              >
-                <option value="">全部年份</option>
-                {years.map((y) => (
-                  <option key={y} value={y}>{y}年</option>
-                ))}
-              </select>
-              <span className="h-4 w-px bg-slate-200" />
-              <select
-                value={currentWeek ?? ''}
-                onChange={(e) => handleWeekSelect(e.target.value)}
-                className="h-7 max-w-[190px] rounded-md bg-transparent px-2 text-xs font-medium text-slate-700 outline-none hover:bg-slate-50 focus:bg-slate-50 min-w-[92px]"
-                aria-label="选择当前周"
-              >
-                {renderWeekOptions()}
-              </select>
+      <div className="flex min-w-0 flex-1 flex-col md:pl-[248px]">
+        <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
+          {/* 桌面工具条：只保留全局搜索和连接状态，年份/周已移到侧栏 */}
+          <div className="hidden h-[var(--header-height)] items-center gap-4 px-5 md:flex">
+            <div className="flex min-w-0 items-center gap-2 text-xs">
+              <span className="font-medium text-slate-500">任务排期</span>
+              <span className="text-slate-300">/</span>
+              <span className="truncate font-semibold text-slate-800">{PAGE_TITLES[location.pathname] ?? '任务'}</span>
             </div>
 
             {!isTasksPage && (
-              <div className="relative ml-auto w-full max-w-sm">
-                <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <div className="relative ml-auto w-full max-w-[360px]">
+                <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <input
                   type="search"
                   value={search}
@@ -347,7 +401,7 @@ export default function Layout() {
                   className="input h-9 pl-9 pr-12"
                   aria-label="全局搜索"
                 />
-                <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-400 lg:block">Enter</kbd>
+                <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500 lg:block">Enter</kbd>
               </div>
             )}
 
@@ -355,7 +409,7 @@ export default function Layout() {
               type="button"
               onClick={() => navigate('/import-export')}
               className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-500 transition hover:bg-slate-50',
+                'flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50',
                 isTasksPage && 'ml-auto',
               )}
               title={connection === 'down' ? '数据连接异常，点击检查导入与备份' : '数据连接正常'}
@@ -365,69 +419,43 @@ export default function Layout() {
             </button>
           </div>
 
-          {/* 移动顶栏：品牌 + 紧凑年/周 + 搜索独立一行 */}
-          <div className="md:hidden">
-            <div className="flex items-center gap-2 px-3 pb-1.5 pt-2.5">
-              <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white">
-                  <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
-                </span>
-                <span className="hidden text-sm font-semibold text-slate-800 min-[380px]:block">任务排期</span>
-              </div>
-
-              <div className="ml-auto flex min-w-0 items-center rounded-lg border border-slate-200 bg-white p-0.5">
-                <select
-                  value={activeYear ?? ''}
-                  onChange={(e) => handleYearChange(e.target.value)}
-                  className="h-7 w-[62px] shrink-0 rounded-md bg-transparent px-1 text-[11px] text-slate-600 outline-none"
-                  aria-label="选择年份"
-                >
-                  <option value="">全部</option>
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}年</option>
-                  ))}
-                </select>
-                <span className="h-4 w-px bg-slate-200" />
-                <select
-                  value={currentWeek ?? ''}
-                  onChange={(e) => handleWeekSelect(e.target.value)}
-                  className="h-7 max-w-[132px] min-w-[72px] rounded-md bg-transparent px-1 text-[11px] font-medium text-slate-700 outline-none"
-                  aria-label="选择当前周"
-                >
-                  {renderWeekOptions()}
-                </select>
-              </div>
-              <button
-                type="button"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                title={connectionMeta.text}
-                aria-label={connectionMeta.text}
-                onClick={() => navigate('/import-export')}
-              >
-                <span className={cn('h-2 w-2 rounded-full', connectionMeta.dot, connection === 'checking' && 'animate-pulse')} />
-              </button>
+          {/* 移动顶栏：品牌 + 当前范围单入口，搜索与切换收进任务页/范围面板 */}
+          <div className="flex h-[var(--header-height)] w-full min-w-0 items-center gap-2 px-3 md:hidden">
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white">
+                <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              </span>
+              <span className="hidden text-sm font-semibold text-slate-900 min-[480px]:block">任务排期</span>
             </div>
-            {!isTasksPage && (
-              <div className="relative px-3 pb-2">
-                <Icon name="search" className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') submitSearch(); }}
-                  placeholder="搜索任务名称 / 备注…"
-                  className="input h-9 pl-9"
-                  aria-label="全局搜索"
-                />
-              </div>
-            )}
+
+            <button
+              type="button"
+              onClick={() => setScopeOpen(true)}
+              className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 pl-2.5 pr-2 text-xs font-medium text-slate-700 transition active:bg-slate-50"
+              aria-haspopup="dialog"
+              aria-expanded={scopeOpen}
+            >
+              <Icon name="calendar" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+              <span className="min-w-0 flex-1 truncate text-left">{currentScopeLabel}</span>
+              <Icon name="chevron-down" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            </button>
+
+            <button
+              type="button"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              title={connectionMeta.text}
+              aria-label={connectionMeta.text}
+              onClick={() => navigate('/import-export')}
+            >
+              <span className={cn('h-2 w-2 rounded-full', connectionMeta.dot, connection === 'checking' && 'animate-pulse')} />
+            </button>
           </div>
 
           {connection === 'down' && (
             <div className="flex items-center gap-2 border-t border-rose-100 bg-rose-50 px-4 py-1.5 text-xs text-rose-700">
               <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
               <span className="min-w-0 flex-1">无法连接后端服务或 MySQL，请确认服务与数据库正在运行。</span>
-              <button type="button" className="shrink-0 underline underline-offset-2" onClick={() => navigate('/import-export')}>
+              <button type="button" className="shrink-0 font-medium underline underline-offset-2" onClick={() => navigate('/import-export')}>
                 检查数据
               </button>
             </div>
@@ -435,7 +463,8 @@ export default function Layout() {
         </header>
 
         <main
-          className="min-w-0 flex-1 overflow-x-hidden p-3 pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] md:p-5 md:pb-8"
+          id="main-content"
+          className="mx-auto min-w-0 w-full max-w-[1600px] flex-1 overflow-x-hidden p-4 pb-[calc(5.5rem_+_env(safe-area-inset-bottom))] sm:p-5 md:px-6 md:pb-8 lg:p-6"
         >
           <Outlet />
         </main>
@@ -453,8 +482,8 @@ export default function Layout() {
             onClick={() => setMoreOpen(true)}
             aria-expanded={moreOpen}
             className={cn(
-              'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-[10px] font-medium transition',
-              isManagePath ? 'text-brand-700' : 'text-slate-400 active:bg-slate-100',
+              'flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium transition',
+              isManagePath ? 'text-brand-700' : 'text-slate-500 active:bg-slate-100',
             )}
           >
             <Icon name="menu" className="h-5 w-5" />
@@ -521,6 +550,53 @@ export default function Layout() {
           </div>
         </div>
       )}
+
+      {/* 移动端：一个入口切换工作范围，避免顶栏堆叠年份、周与搜索 */}
+      <Modal
+        open={scopeOpen}
+        onClose={() => setScopeOpen(false)}
+        title="切换工作范围"
+        footer={<Button variant="primary" onClick={() => setScopeOpen(false)}>完成</Button>}
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <p className="text-[11px] font-semibold text-slate-500">当前</p>
+            <p className="mt-1 text-base font-semibold text-slate-900">{currentScopeLabel}</p>
+            <p className="mt-0.5 text-xs text-slate-500">{currentScopeMeta} · 切换后打开任务页</p>
+          </div>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-600">年份</span>
+            <select
+              value={activeYear ?? ''}
+              onChange={(e) => { setScopeOpen(false); handleYearChange(e.target.value); }}
+              className="select h-10"
+              aria-label="选择年份"
+            >
+              <option value="">全部年份</option>
+              {years.map((y) => <option key={y} value={y}>{y}年</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-600">周</span>
+            <select
+              value={currentWeek ?? ''}
+              onChange={(e) => { setScopeOpen(false); handleWeekSelect(e.target.value); }}
+              className="select h-10"
+              aria-label="选择当前周"
+            >
+              {renderWeekOptions()}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => { setScopeOpen(false); setNewWeekDraft(''); setNewWeekOpen(true); }}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 py-2.5 text-xs font-medium text-slate-600 transition hover:border-brand-300 hover:bg-brand-50/40 hover:text-brand-700"
+          >
+            <Icon name="plus" className="h-3.5 w-3.5" />
+            新建一个周
+          </button>
+        </div>
+      </Modal>
 
       <Modal
         open={newWeekOpen}

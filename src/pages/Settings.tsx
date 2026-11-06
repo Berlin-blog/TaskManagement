@@ -80,13 +80,24 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       <PageHeader
         title="设置"
-        subtitle="任务选项、周设置与数据管理"
+        subtitle="任务选项、周顺序与数据管理；设置保存在本地数据库，不会随浏览器清缓存丢失。"
+        scope={
+          <>
+            <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">本地 MySQL</Badge>
+            <span className="num text-xs text-slate-500">{(sortedWeeks ?? []).length} 个周</span>
+          </>
+        }
         actions={
           <>
-            {saved && <span className="text-xs text-emerald-600">✓ 已保存</span>}
+            {saved && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700" role="status">
+                <Icon name="check" className="h-3.5 w-3.5" />
+                已保存
+              </span>
+            )}
             <Button variant="primary" className="min-h-9" onClick={save} disabled={saving}>
               {saving ? '保存中…' : '保存设置'}
             </Button>
@@ -98,6 +109,7 @@ export default function Settings() {
         <SectionTitle title="任务选项" subtitle="影响任务导入、展示和优先级命名" />
         <Card>
           <CardTitle>P 优先级映射</CardTitle>
+          <p className="mb-3 text-xs leading-relaxed text-slate-500">显示在任务列表、看板和筛选器中的优先级名称。</p>
           <div className="grid grid-cols-3 gap-3">
             <label className="block">
               <span className="mb-1 block text-xs text-slate-500">P1</span>

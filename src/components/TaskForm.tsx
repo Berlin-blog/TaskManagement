@@ -134,112 +134,149 @@ export function TaskForm({
         </>
       }
     >
-      <div className="space-y-3">
-        <Field label="所属周（可从已有周选择，或直接输入新周名）">
-          <div className="flex gap-2">
-            <Select
-              value={weekNames.includes(form.weekName) ? form.weekName : '__custom__'}
-              onChange={(e) => {
-                if (e.target.value === '__custom__') return;
-                set({ weekName: e.target.value });
-              }}
-              className="w-auto min-w-[140px]"
-            >
-              <option value="">— 选择已有周 —</option>
-              {weekNames.map((w) => (
-                <option key={w} value={w}>{displayWeekName(w)}</option>
-              ))}
-              {form.weekName && !weekNames.includes(form.weekName) && (
-                <option value={form.weekName}>{displayWeekName(form.weekName)}</option>
-              )}
-            </Select>
-            <Input
-              value={form.weekName}
-              onChange={(e) => set({ weekName: e.target.value })}
-              placeholder="或输入新周名，如 10月第一周"
-              className={`flex-1 ${errors.week ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-300/40' : ''}`}
-              aria-invalid={!!errors.week}
-            />
+      <div className="space-y-5">
+        <section className="space-y-3.5">
+          <div className="flex items-center gap-2">
+            <span className="h-4 w-1 rounded-full bg-brand-500" />
+            <h3 className="text-xs font-semibold text-slate-700">基本信息</h3>
+            <span className="text-[11px] text-slate-500">名称与所属周为必填</span>
           </div>
-          {errors.week && <p className="mt-1 text-[11px] text-rose-600">{errors.week}</p>}
-          {normalizedWeek && normalizedWeek !== form.weekName.trim() && (
-            <p className="mt-1 text-[11px] text-brand-500">
-              将保存为「{normalizedWeek}」（自动补年份，跨年同名周不会互相覆盖）
-            </p>
-          )}
-        </Field>
-        <Field label="任务名称">
-          <Input
-            value={form.title}
-            onChange={(e) => set({ title: e.target.value })}
-            placeholder="如：国宝红周报周一更新"
-            className={errors.title ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-300/40' : ''}
-            aria-invalid={!!errors.title}
-            onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-          />
-          {errors.title && <p className="mt-1 text-[11px] text-rose-600">{errors.title}</p>}
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="需求人">
-            <Input value={form.requester} onChange={(e) => set({ requester: e.target.value })} />
-          </Field>
-          <Field label="P 优先级">
-            <Select
-              value={form.priority}
-              onChange={(e) => set({ priority: Number(e.target.value) as Priority })}
-            >
-              <option value={1}>P1 {priorityLabel(1, settings)}</option>
-              <option value={2}>P2 {priorityLabel(2, settings)}</option>
-              <option value={3}>P3 {priorityLabel(3, settings)}</option>
-            </Select>
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="预估时间（26.9.7 / 持续 / 待定）">
+
+          <Field label="任务名称" required>
             <Input
-              value={form.estimatedDateText}
-              onChange={(e) => set({ estimatedDateText: e.target.value })}
-              placeholder="26.9.7"
+              autoFocus
+              value={form.title}
+              onChange={(e) => set({ title: e.target.value })}
+              placeholder="如：国宝红周报周一更新"
+              aria-invalid={!!errors.title}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
             />
-            {form.estimatedDateText && parseDate(form.estimatedDateText) && (
-              <p className="mt-1 text-[11px] text-emerald-600">→ {formatDateShort(parseDate(form.estimatedDateText))}</p>
-            )}
-            {form.estimatedDateText && isSpecialText(form.estimatedDateText) && (
-              <p className="mt-1 text-[11px] text-amber-600">特殊日期，按原文保留</p>
+            {errors.title && <p className="mt-1 text-[11px] font-medium text-rose-600">{errors.title}</p>}
+          </Field>
+
+          <Field label="所属周" required hint="可从已有周选择，也可直接输入新周名">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Select
+                value={weekNames.includes(form.weekName) ? form.weekName : '__custom__'}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') return;
+                  set({ weekName: e.target.value });
+                }}
+                className="sm:w-[170px]"
+                aria-label="选择已有周"
+              >
+                <option value="">— 选择已有周 —</option>
+                {weekNames.map((w) => (
+                  <option key={w} value={w}>{displayWeekName(w)}</option>
+                ))}
+                {form.weekName && !weekNames.includes(form.weekName) && (
+                  <option value={form.weekName}>{displayWeekName(form.weekName)}</option>
+                )}
+              </Select>
+              <Input
+                value={form.weekName}
+                onChange={(e) => set({ weekName: e.target.value })}
+                placeholder="或输入新周名，如 10月第一周"
+                className="flex-1"
+                aria-invalid={!!errors.week}
+                aria-label="周名"
+              />
+            </div>
+            {errors.week && <p className="mt-1 text-[11px] font-medium text-rose-600">{errors.week}</p>}
+            {normalizedWeek && normalizedWeek !== form.weekName.trim() && (
+              <p className="mt-1 text-[11px] text-brand-600">
+                将保存为「{normalizedWeek}」（自动补年份，跨年同名周不会互相覆盖）
+              </p>
             )}
           </Field>
-          <Field label="修订时间">
-            <Input
-              value={form.revisedDateText}
-              onChange={(e) => set({ revisedDateText: e.target.value })}
-              placeholder="留空"
-            />
-            {form.revisedDateText && parseDate(form.revisedDateText) && (
-              <p className="mt-1 text-[11px] text-amber-600">→ {formatDateShort(parseDate(form.revisedDateText))}</p>
-            )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="需求人">
+              <Input value={form.requester} onChange={(e) => set({ requester: e.target.value })} placeholder="可选" />
+            </Field>
+            <Field label="优先级">
+              <Select
+                value={form.priority}
+                onChange={(e) => set({ priority: Number(e.target.value) as Priority })}
+              >
+                <option value={1}>P1 {priorityLabel(1, settings)}</option>
+                <option value={2}>P2 {priorityLabel(2, settings)}</option>
+                <option value={3}>P3 {priorityLabel(3, settings)}</option>
+              </Select>
+            </Field>
+          </div>
+        </section>
+
+        <section className="space-y-3.5 rounded-xl border border-slate-200/70 bg-slate-50/50 p-3.5">
+          <div className="flex items-center gap-2">
+            <span className="h-4 w-1 rounded-full bg-slate-300" />
+            <h3 className="text-xs font-semibold text-slate-700">排期与备注</h3>
+            <span className="text-[11px] text-slate-500">日期支持简短格式或特殊文本</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="预估时间" hint="如 26.9.7 / 持续 / 待定">
+              <Input
+                value={form.estimatedDateText}
+                onChange={(e) => set({ estimatedDateText: e.target.value })}
+                placeholder="26.9.7 / 持续 / 待定"
+              />
+              {form.estimatedDateText && parseDate(form.estimatedDateText) && (
+                <p className="mt-1 text-[11px] text-emerald-700">→ {formatDateShort(parseDate(form.estimatedDateText))}</p>
+              )}
+              {form.estimatedDateText && isSpecialText(form.estimatedDateText) && (
+                <p className="mt-1 text-[11px] text-amber-700">特殊日期，按原文保留</p>
+              )}
+            </Field>
+            <Field label="修订时间" hint="留空表示未修订">
+              <Input
+                value={form.revisedDateText}
+                onChange={(e) => set({ revisedDateText: e.target.value })}
+                placeholder="留空"
+              />
+              {form.revisedDateText && parseDate(form.revisedDateText) && (
+                <p className="mt-1 text-[11px] text-amber-700">→ {formatDateShort(parseDate(form.revisedDateText))}</p>
+              )}
+            </Field>
+          </div>
+          <Field label="备注">
+            <Input value={form.remark} onChange={(e) => set({ remark: e.target.value })} placeholder="可选，长备注会在列表中自动收起" />
           </Field>
-        </div>
-        <Field label="备注">
-          <Input value={form.remark} onChange={(e) => set({ remark: e.target.value })} placeholder="可选" />
-        </Field>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            checked={form.isPeriodic}
-            onChange={(e) => set({ isPeriodic: e.target.checked })}
-            className="h-4 w-4 rounded accent-brand-600"
-          />
-          标记为周期任务（可一键复制到新一周）
-        </label>
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200/70 bg-white px-3 py-2.5 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.isPeriodic}
+              onChange={(e) => set({ isPeriodic: e.target.checked })}
+              className="mt-0.5 h-4 w-4 rounded accent-brand-600"
+            />
+            <span>
+              <span className="block font-medium">标记为周期任务</span>
+              <span className="mt-0.5 block text-[11px] text-slate-500">可在任务页一键复制到新一周</span>
+            </span>
+          </label>
+        </section>
       </div>
     </Modal>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  required,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
+      <span className="mb-1.5 flex items-baseline gap-1 text-xs font-medium text-slate-600">
+        {label}
+        {required && <span className="text-rose-500" aria-hidden="true">*</span>}
+        {hint && <span className="ml-auto text-[10px] font-normal text-slate-500">{hint}</span>}
+      </span>
       {children}
     </label>
   );

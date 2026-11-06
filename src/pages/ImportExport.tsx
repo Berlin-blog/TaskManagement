@@ -178,14 +178,17 @@ export default function ImportExport() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       <PageHeader
         title="导入导出"
-        subtitle="按步骤导入 Excel，或导出当前全部任务作为离线备份"
-        actions={
-          <Badge className="bg-slate-100 text-slate-600 ring-slate-200">
-            {(weekNames ?? []).length} 个周 · {tasks?.length ?? 0} 项任务
-          </Badge>
+        subtitle="按步骤导入 Excel，或导出当前全部任务作为离线备份。导入前会先预览，不会直接写入。"
+        scope={
+          <>
+            <Badge className="bg-slate-100 text-slate-600 ring-slate-200">
+              {(weekNames ?? []).length} 个周
+            </Badge>
+            <span className="num text-xs text-slate-500">{tasks?.length ?? 0} 项任务</span>
+          </>
         }
       />
 
@@ -274,14 +277,14 @@ export default function ImportExport() {
               {preview.samples.length > 0 && (
                 <div className="mb-3 overflow-x-auto rounded-lg border border-slate-100">
                   <table className="w-full text-xs">
-                    <thead className="bg-slate-50 text-slate-500">
+                    <thead className="table-head">
                       <tr>
-                        <th className="px-2 py-1.5 text-left font-medium">周</th>
-                        <th className="px-2 py-1.5 text-left font-medium">名称</th>
-                        <th className="px-2 py-1.5 text-left font-medium">需求人</th>
-                        <th className="px-2 py-1.5 text-left font-medium">P</th>
-                        <th className="px-2 py-1.5 text-left font-medium">预估</th>
-                        <th className="px-2 py-1.5 text-left font-medium">完成</th>
+                        <th className="px-2.5 py-2 text-left font-semibold">周</th>
+                        <th className="px-2.5 py-2 text-left font-semibold">名称</th>
+                        <th className="px-2.5 py-2 text-left font-semibold">需求人</th>
+                        <th className="px-2.5 py-2 text-left font-semibold">P</th>
+                        <th className="px-2.5 py-2 text-left font-semibold">预估</th>
+                        <th className="px-2.5 py-2 text-left font-semibold">完成</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -306,17 +309,30 @@ export default function ImportExport() {
                 </ul>
               )}
 
-              <div className="flex flex-wrap items-center gap-4 rounded-lg bg-slate-50 px-3 py-2.5">
-                <span className="text-xs font-medium text-slate-600">导入方式</span>
-                <label className="flex items-center gap-1.5 text-sm text-slate-600">
-                  <input type="radio" checked={mode === 'merge'} onChange={() => setMode('merge')} className="accent-brand-600" />
-                  合并（同周同名更新）
-                </label>
-                <label className="flex items-center gap-1.5 text-sm text-slate-600">
-                  <input type="radio" checked={mode === 'replace'} onChange={() => setMode('replace')} className="accent-brand-600" />
-                  覆盖（清空后导入）
-                </label>
-                {mode === 'replace' && <span className="text-[11px] text-rose-500">覆盖将清空现有数据</span>}
+              <div className="rounded-xl border border-slate-200/70 bg-slate-50/70 px-3.5 py-3">
+                <p className="mb-2 text-xs font-semibold text-slate-700">导入方式</p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5">
+                  <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                    <input type="radio" checked={mode === 'merge'} onChange={() => setMode('merge')} className="mt-0.5 accent-brand-600" />
+                    <span>
+                      <span className="font-medium">合并导入</span>
+                      <span className="mt-0.5 block text-[11px] text-slate-500">同周同名任务更新，其余新增；不会删除现有数据</span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                    <input type="radio" checked={mode === 'replace'} onChange={() => setMode('replace')} className="mt-0.5 accent-rose-600" />
+                    <span>
+                      <span className="font-medium">覆盖导入</span>
+                      <span className="mt-0.5 block text-[11px] text-slate-500">先清空全部任务、日志与附件，再导入</span>
+                    </span>
+                  </label>
+                </div>
+                {mode === 'replace' && (
+                  <p className="mt-2 flex items-center gap-1.5 rounded-md bg-rose-50 px-2 py-1.5 text-[11px] font-medium text-rose-700">
+                    <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+                    覆盖操作不可撤销，建议先在下方导出一份备份。
+                  </p>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="primary" onClick={doImport} disabled={importing}>

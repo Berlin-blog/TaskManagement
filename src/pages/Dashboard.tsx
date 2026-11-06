@@ -79,7 +79,7 @@ export default function Dashboard() {
 
   if (tasks.length === 0) {
     return (
-      <div className="space-y-4">
+      <div className="page-stack">
         <PageHeader
           title="仪表盘"
           subtitle="今日概览与优先处理"
@@ -92,8 +92,9 @@ export default function Dashboard() {
         />
         <Card>
           <EmptyState
-            title="当前还没有任务"
-            hint="先导入已有的 Excel 排期，或直接新增第一条任务。导入后这里会自动汇总延期、到期和高优先级事项。"
+            icon={<Icon name="sparkles" className="h-5 w-5 text-brand-500" />}
+            title="从第一条任务开始"
+            hint="导入已有的 Excel 排期，或直接新增任务。导入后这里会自动汇总延期、到期和高优先级事项。"
             action={
               <>
                 <Button variant="primary" onClick={() => setAddOpen(true)}>
@@ -199,13 +200,20 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       <PageHeader
         title="仪表盘"
-        subtitle={
-          <span>
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })} · 先处理延期和临近截止，再安排本周计划
-          </span>
+        subtitle={`${new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })} · 先处理延期和临近截止，再安排本周计划`}
+        scope={
+          <>
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white px-2.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+              <Icon name="calendar" className="h-3.5 w-3.5 text-slate-500" />
+              {focusWeek ? focusWeekName : '本周'}
+            </span>
+            <span className="num text-xs text-slate-500">
+              {focusDone}/{focusTasks.length} 项已完成 · <b className="font-semibold text-emerald-700">{focusRate}%</b>
+            </span>
+          </>
         }
         actions={
           <>
@@ -307,7 +315,7 @@ export default function Dashboard() {
                 )}
               </div>
               {group.items.length === 0 ? (
-                <p className="rounded-lg bg-white/60 px-3 py-5 text-center text-xs text-slate-400">这里很清爽</p>
+                <p className="rounded-lg bg-white/70 px-3 py-5 text-center text-xs text-slate-500">这里暂时没有需要处理的任务</p>
               ) : (
                 <div className="-mx-1 divide-y divide-slate-50">
                   {group.items.slice(0, 5).map((t) => (
@@ -380,7 +388,11 @@ export default function Dashboard() {
               </span>
             </div>
             {weekTrend.length === 0 ? (
-              <p className="py-14 text-center text-xs text-slate-400">暂无周数据</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-sm font-medium text-slate-700">还没有可绘制的周趋势</p>
+                <p className="mt-1 text-xs text-slate-500">任务有日期和所属周后，这里会显示完成率变化。</p>
+                <Link to="/tasks" className="mt-3 text-xs font-semibold text-brand-600 hover:underline">去任务页查看 →</Link>
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={210}>
                 <AreaChart data={weekTrend} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
@@ -418,17 +430,17 @@ function OverviewCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'card group relative overflow-hidden p-4 text-left transition hover:-translate-y-0.5 hover:shadow-card',
+        'card group relative overflow-hidden p-4 text-left transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card',
         emphasis && 'border-orange-200',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-800 tabular-nums">{value}</p>
-          <p className="mt-1 text-[11px] text-slate-400">{hint}</p>
+          <p className="text-xs font-medium text-slate-600">{label}</p>
+          <p className="num mt-2 text-[28px] font-semibold leading-none tracking-tight text-slate-900">{value}</p>
+          <p className="mt-2 text-[11px] text-slate-500">{hint}</p>
         </div>
-        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-soft', tone)}>
+        <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-soft', tone)}>
           <Icon name={icon} className="h-[18px] w-[18px]" />
         </span>
       </div>
@@ -456,13 +468,13 @@ function PriorityRow({
     <div className="-mx-1 flex items-start gap-2 rounded-lg px-1 py-2.5 transition hover:bg-slate-50/80">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <p className="min-w-0 break-words text-sm font-medium leading-snug text-slate-800">{task.title}</p>
+          <p className="min-w-0 break-words text-[13.5px] font-semibold leading-snug text-slate-900">{task.title}</p>
           <Badge className={STATUS_BADGE_CLASS[ds]}>{DISPLAY_STATUS_LABELS[ds]}</Badge>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
           <Badge className={priorityBadgeClass(task.priority)}>P{task.priority} {priorityLabel(task.priority, settings)}</Badge>
-          <span className="inline-flex items-center gap-1">
-            <Icon name="calendar" className="h-3 w-3" />
+          <span className="num inline-flex items-center gap-1">
+            <Icon name="calendar" className="h-3 w-3 text-slate-500" />
             {task.revisedDateText || task.estimatedDateText || '未设日期'}
           </span>
           {hint && (

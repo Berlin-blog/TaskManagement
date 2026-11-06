@@ -31,10 +31,10 @@ function OverviewStat({
     <>
       <div className="flex items-center gap-1.5">
         <span className={cn('h-2.5 w-2.5 rounded-full', dot)} />
-        <span className="text-xs text-slate-500">{label}</span>
+        <span className="text-xs font-medium text-slate-600">{label}</span>
       </div>
       <div className="mt-2 flex items-end justify-between gap-2">
-        <span className="text-2xl font-bold tracking-tight text-slate-800 tabular-nums">{value}</span>
+        <span className="num text-2xl font-semibold tracking-tight text-slate-900">{value}</span>
         {to && <Icon name="arrow-right" className="mb-1 h-3.5 w-3.5 text-slate-300" />}
       </div>
       {sub && <span className="mt-0.5 block text-[11px] text-slate-400">{sub}</span>}
@@ -150,16 +150,25 @@ export default function Stats() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       <PageHeader
         title="统计"
-        subtitle="先看概览，再从周趋势、需求人和优先级三个角度分析"
-        meta={<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">{total} 项任务</span>}
+        subtitle="先看概览，再从周趋势、需求人和优先级三个角度分析；所有图表都可下钻到任务明细。"
+        scope={
+          <>
+            <span className="num inline-flex h-7 items-center rounded-full bg-slate-100 px-2.5 text-xs font-semibold text-slate-700">
+              {total} 项任务
+            </span>
+            <span className="text-xs text-slate-500">
+              {activeCount > 0 ? `已应用 ${activeCount} 个筛选` : '全部数据范围'}
+            </span>
+          </>
+        }
       />
 
       {/* 统一筛选 */}
-      <Card className="p-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <Card className="p-3.5">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="grid flex-1 grid-cols-2 gap-2 sm:flex sm:flex-none">
             <select
               value={year}
@@ -201,7 +210,14 @@ export default function Stats() {
       </Card>
 
       {total === 0 ? (
-        <Card><EmptyState title="当前筛选下没有数据" hint="尝试切换年份、周或需求人，或清除全部筛选。" action={<Button variant="outline" onClick={clearFilters}>清除筛选</Button>} /></Card>
+        <Card>
+          <EmptyState
+            icon={<Icon name="chart" className="h-5 w-5 text-brand-500" />}
+            title="当前筛选下没有数据"
+            hint="尝试切换年份、周或需求人，或清除全部筛选后再看图表。"
+            action={<Button variant="outline" onClick={clearFilters}>清除筛选</Button>}
+          />
+        </Card>
       ) : (
         <>
           <section className="space-y-3">
@@ -255,7 +271,13 @@ export default function Stats() {
                 }
               >
                 {byWeek.length === 0 ? (
-                  <p className="py-20 text-center text-xs text-slate-400">当前范围暂无周数据</p>
+                  <div className="py-16 text-center">
+                    <p className="text-sm font-medium text-slate-700">当前范围暂无周数据</p>
+                    <p className="mt-1 text-xs text-slate-500">导入或新增带周的任务后，这里会显示周趋势。</p>
+                    <button type="button" onClick={hasFilters ? clearFilters : () => navigate('/tasks')} className="mt-3 text-xs font-semibold text-brand-600 hover:underline">
+                      {hasFilters ? '清除筛选 →' : '去任务页查看 →'}
+                    </button>
+                  </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <ComposedChart data={byWeek} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
@@ -333,7 +355,11 @@ export default function Stats() {
               action={<span className="text-[11px] text-slate-400">按任务量排序</span>}
             >
               {byRequester.length === 0 ? (
-                <p className="py-16 text-center text-xs text-slate-400">暂无需求人数据</p>
+                <div className="py-16 text-center">
+                  <p className="text-sm font-medium text-slate-700">暂无需求人数据</p>
+                  <p className="mt-1 text-xs text-slate-500">给任务补充需求人后，可按人查看任务量与完成率。</p>
+                  <button type="button" onClick={() => navigate('/tasks')} className="mt-3 text-xs font-semibold text-brand-600 hover:underline">去任务页查看 →</button>
+                </div>
               ) : (
                 <>
                   {/* 移动端卡片列表 */}
