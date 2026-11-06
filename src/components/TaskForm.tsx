@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Task, Priority, AppSettings } from '../types';
 import { Modal, Input, Select, Button, toast } from './ui';
 import { uuid } from '../lib/utils';
-import { parseDate, formatDateShort, isSpecialText } from '../lib/date';
+import { parseDate, formatDateShort, isSpecialText, todayISO } from '../lib/date';
 import { priorityLabel } from '../lib/status';
 import { normalizeWeekName, displayWeekName, parseWeekName, hasExplicitWeekYear } from '../lib/weekSort';
 
@@ -23,28 +23,32 @@ export function TaskForm({
   weekNames: string[];
   settings?: AppSettings;
 }) {
-  const buildEmpty = useCallback((): Task => ({
-    uid: uuid(),
-    weekName,
-    seq: 0,
-    title: '',
-    requester: '',
-    priority: 3,
-    attachmentCount: 0,
-    estimatedDate: null,
-    estimatedDateText: '',
-    revisedDate: null,
-    revisedDateText: '',
-    isSpecialDate: false,
-    isCompleted: false,
-    completedAt: null,
-    completedAtText: '',
-    remark: '',
-    status: 'notStarted',
-    isPeriodic: false,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  }), [weekName]);
+  const buildEmpty = useCallback((): Task => {
+    // 新增任务默认把预估时间填为今天，减少每天重复输入；仍可直接改成其他日期或「持续 / 待定」
+    const today = todayISO();
+    return {
+      uid: uuid(),
+      weekName,
+      seq: 0,
+      title: '',
+      requester: '',
+      priority: 3,
+      attachmentCount: 0,
+      estimatedDate: today,
+      estimatedDateText: formatDateShort(today),
+      revisedDate: null,
+      revisedDateText: '',
+      isSpecialDate: false,
+      isCompleted: false,
+      completedAt: null,
+      completedAtText: '',
+      remark: '',
+      status: 'notStarted',
+      isPeriodic: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  }, [weekName]);
 
   const [form, setForm] = useState<Task>(() => initial ?? buildEmpty());
   const [saving, setSaving] = useState(false);
