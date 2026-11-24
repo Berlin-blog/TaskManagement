@@ -254,6 +254,8 @@ export default function Settings() {
         </Card>
       </section>
 
+      <SettingsDirtyGuard dirty={dirty} />
+
       {dirty && (
         <div
           className="fixed inset-x-4 bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-2xl items-center gap-3 rounded-xl border border-amber-200 bg-white/95 px-3.5 py-2.5 shadow-[var(--shadow-float)] backdrop-blur md:bottom-6"
@@ -273,4 +275,34 @@ export default function Settings() {
       )}
     </div>
   );
+}
+
+/** 未保存设置时拦截站内链接与浏览器离开，避免静默丢失修改 */
+function SettingsDirtyGuard({ dirty }: { dirty: boolean }) {
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute('href') ?? '';
+      if (!href || href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:')) return;
+      if (href === `${window.location.pathname}${window.location.search}`) return;
+      if (!window.confirm('有未保存的设置修改，确定离开此页面？')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('click', onClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('click', onClick, true);
+    };
+  }, [dirty]);
+  return null;
 }
