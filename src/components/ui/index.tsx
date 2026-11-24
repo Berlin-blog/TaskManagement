@@ -56,6 +56,7 @@ export function PageLoadError({
   message?: string;
   onRetry: () => void;
 }) {
+  const detail = message && !/failed to fetch|network ?error|load failed/i.test(message) ? message : null;
   return (
     <div className="page-stack">
       <PageHeader title={title} subtitle="数据暂时无法加载" />
@@ -70,9 +71,9 @@ export function PageLoadError({
           <p className="mt-1.5 max-w-md text-xs leading-relaxed text-slate-500">
             请确认本地服务与 MySQL 正在运行，然后重试。已成功加载的内容不受影响。
           </p>
-          {message && (
+          {detail && (
             <p className="mt-2 max-w-md break-words rounded-lg bg-slate-50 px-3 py-1.5 text-[11px] text-slate-500">
-              {message}
+              {detail}
             </p>
           )}
           <Button variant="primary" className="mt-5 min-h-9" onClick={onRetry}>
