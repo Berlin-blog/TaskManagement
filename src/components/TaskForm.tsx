@@ -191,34 +191,20 @@ export function TaskForm({
             {errors.title && <p className="mt-1 text-[11px] font-medium text-rose-600">{errors.title}</p>}
           </Field>
 
-          <Field label="所属周" required hint="可从已有周选择，也可直接输入新周名">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Select
-                value={weekNames.includes(form.weekName) ? form.weekName : '__custom__'}
-                onChange={(e) => {
-                  if (e.target.value === '__custom__') return;
-                  set({ weekName: e.target.value });
-                }}
-                className="sm:w-[170px]"
-                aria-label="选择已有周"
-              >
-                <option value="">— 选择已有周 —</option>
-                {weekNames.map((w) => (
-                  <option key={w} value={w}>{displayWeekName(w)}</option>
-                ))}
-                {form.weekName && !weekNames.includes(form.weekName) && (
-                  <option value={form.weekName}>{displayWeekName(form.weekName)}</option>
-                )}
-              </Select>
-              <Input
-                value={form.weekName}
-                onChange={(e) => set({ weekName: e.target.value })}
-                placeholder="或输入新周名，如 10月第一周"
-                className="flex-1"
-                aria-invalid={!!errors.week}
-                aria-label="周名"
-              />
-            </div>
+          <Field label="所属周" required hint="选择已有周，或直接输入新周名">
+            <Input
+              list="task-week-options"
+              value={form.weekName}
+              onChange={(e) => set({ weekName: e.target.value })}
+              placeholder="如 11月第一周，也可选择已有周"
+              aria-invalid={!!errors.week}
+              aria-label="所属周"
+            />
+            <datalist id="task-week-options">
+              {weekNames.map((w) => (
+                <option key={w} value={w}>{displayWeekName(w)}</option>
+              ))}
+            </datalist>
             {errors.week && <p className="mt-1 text-[11px] font-medium text-rose-600">{errors.week}</p>}
             {normalizedWeek && normalizedWeek !== form.weekName.trim() && (
               <p className="mt-1 text-[11px] text-brand-600">
