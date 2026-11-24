@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useSettings, useWeekNames, useWeekTasks, useAllTasks, addTask, generatePeriodicTasks } from '../hooks/useTasks';
-import { Button, EmptyState, Modal, toast, confirmAction, PageSkeleton, PageHeader, Badge, Segmented } from '../components/ui';
+import { useSettings, useWeekNames, useWeekTasks, useAllTasks, useLoadError, addTask, generatePeriodicTasks } from '../hooks/useTasks';
+import { Button, EmptyState, Modal, toast, confirmAction, PageSkeleton, PageLoadError, PageHeader, Badge, Segmented } from '../components/ui';
 import { TaskTable } from '../components/TaskTable';
 import { TaskForm } from '../components/TaskForm';
 import { FilterBar, activeFilterCount, type FilterState } from '../components/Filters';
@@ -68,6 +68,7 @@ type TaskView = 'open' | 'all';
 export default function Tasks() {
   const settings = useSettings();
   const weekNames = useWeekNames();
+  const load = useLoadError();
   const [searchParams, setSearchParams] = useSearchParams();
   const [formOpen, setFormOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -173,6 +174,15 @@ export default function Tasks() {
 
   const resetSort = () => updateParams({ sort: null, desc: null, page: null });
 
+  /** 移动端/卡片模式的排序入口：直接指定字段与方向 */
+  const setSort = (key: SortKey, desc: boolean) => {
+    updateParams({
+      sort: key === 'smart' ? null : key,
+      desc: key !== 'smart' && desc ? '1' : null,
+      page: null,
+    });
+  };
+
   const setPage = (page: number) => {
     updateParams({ page: page <= 1 ? null : String(page) });
   };
@@ -215,6 +225,7 @@ export default function Tasks() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curIdx, viewWeek, sortedWeeks.join('|')]);
 
+  if (load.error && !tasks) return <PageLoadError title="任务" message={load.error} onRetry={load.retry} />;
   if (!tasks || !settings) return <PageSkeleton />;
 
   const requesters = Array.from(new Set(tasks.map((t) => t.requester).filter(Boolean)));
@@ -416,6 +427,7 @@ export default function Tasks() {
             sortKey={sortKey}
             sortDesc={sortDesc}
             onToggleSort={toggleSort}
+            onChangeSort={setSort}
             onResetSort={resetSort}
             hiddenDone={hiddenDone}
             onShowAll={() => updateParams({ view: 'all', page: null })}

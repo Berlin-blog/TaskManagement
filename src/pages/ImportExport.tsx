@@ -1,11 +1,11 @@
 import { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  useAllTasks, useSettings, useWeekNames, useImportLogs,
+  useAllTasks, useSettings, useWeekNames, useImportLogs, useLoadError,
   bulkAddTasks, bulkUpsertTasks, bulkAddImportLogs, clearAllData,
 } from '../hooks/useTasks';
 import {
-  Card, CardTitle, Button, Badge, EmptyState, toast, confirmAction, PageHeader,
+  Card, CardTitle, Button, Badge, EmptyState, toast, confirmAction, PageLoadError, PageHeader,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { parseWorkbook, exportWeekXlsx, exportAllXlsx, exportAllCsv, downloadBlob } from '../lib/excel';
@@ -75,6 +75,7 @@ export default function ImportExport() {
   const settings = useSettings();
   const weekNames = useWeekNames();
   const importLogs = useImportLogs();
+  const load = useLoadError();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [completed, setCompleted] = useState<Completed | null>(null);
@@ -176,6 +177,8 @@ export default function ImportExport() {
       setImporting(false);
     }
   };
+
+  if (load.error && !settings) return <PageLoadError title="导入导出" message={load.error} onRetry={load.retry} />;
 
   return (
     <div className="page-stack">

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  useAllTasks, useSettings, useWeekNames, setTaskStatus, setCompleted,
+  useAllTasks, useSettings, useWeekNames, useLoadError, setTaskStatus, setCompleted,
   deleteTask, addTask, updateTaskFields,
 } from '../hooks/useTasks';
 import {
-  Card, EmptyState, Badge, PageSkeleton, PageHeader, Button,
+  Card, EmptyState, Badge, PageSkeleton, PageLoadError, PageHeader, Button,
 } from '../components/ui';
 import { FilterBar, EMPTY_FILTER, type FilterState } from '../components/Filters';
 import { MoreMenu, type MenuItem } from '../components/MoreMenu';
@@ -42,6 +42,7 @@ export default function Board() {
   const tasks = useAllTasks();
   const settings = useSettings();
   const weekNames = useWeekNames();
+  const load = useLoadError();
   const currentWeek = useUIStore((s) => s.currentWeek);
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [initialized, setInitialized] = useState(false);
@@ -68,6 +69,7 @@ export default function Board() {
     useUIStore.getState().setCurrentWeek(f.week || null);
   };
 
+  if (load.error && !tasks) return <PageLoadError title="看板" message={load.error} onRetry={load.retry} />;
   if (!tasks || !settings) return <PageSkeleton />;
 
   const requesters = Array.from(new Set(tasks.map((t) => t.requester).filter(Boolean)));
@@ -93,6 +95,12 @@ export default function Board() {
   const delayedItems = filtered.filter(isDelayed);
   const openCount = filtered.filter((t) => !isDone(t) && t.status !== 'cancelled').length;
   const currentRange = filter.week ? displayWeekName(filter.week) : '全部周';
+  // 移动端不把用户留在空状态列：当前列没有数据时回落到第一个有数据的状态
+  const mobileColumn = COLUMNS.find((col) => col.key === mobileStatus);
+  const mobileItems = filtered.filter((t) => columnOf(t) === mobileStatus);
+  const effectiveMobileStatus = (!mobileColumn || mobileItems.length === 0)
+    ? (COLUMNS.find((col) => filtered.some((t) => columnOf(t) === col.key))?.key ?? 'notStarted')
+    : mobileStatus;
 
   const onDrop = async (col: typeof COLUMNS[number]) => {
     const id = dragId;
@@ -298,31 +306,30 @@ export default function Board() {
                     key={col.key}
                     type="button"
                     role="tab"
-                    aria-selected={mobileStatus === col.key}
+                    aria-selected={effectiveMobileStatus === col.key}
+                    disabled={count === 0}
                     onClick={() => setMobileStatus(col.key)}
                     className={cn(
                       'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl border text-xs font-medium transition',
-                      mobileStatus === col.key
+                      effectiveMobileStatus === col.key
                         ? 'border-brand-200 bg-brand-50 text-brand-700'
                         : 'border-slate-100 bg-white text-slate-500',
+                      count === 0 && effectiveMobileStatus !== col.key && 'cursor-not-allowed opacity-45',
                     )}
                   >
                     <span className="flex items-center gap-1">
                       <span className={cn('h-1.5 w-1.5 rounded-full', col.dot)} />
                       {col.label}
                     </span>
-                    <span className={cn('text-lg font-semibold tabular-nums', mobileStatus === col.key ? 'text-brand-700' : 'text-slate-700')}>
+                    <span className={cn('text-lg font-semibold tabular-nums', effectiveMobileStatus === col.key ? 'text-brand-700' : 'text-slate-700')}>
                       {count}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <div className="space-y-2">
-              {filtered.filter((t) => columnOf(t) === mobileStatus).map((t) => renderCard(t, true))}
-              {filtered.filter((t) => columnOf(t) === mobileStatus).length === 0 && (
-                <Card className="py-10 text-center text-xs text-slate-400">这个状态下暂无任务</Card>
-              )}
+            <div className="grid items-start gap-2 sm:grid-cols-2">
+              {filtered.filter((t) => columnOf(t) === effectiveMobileStatus).map((t) => renderCard(t, true))}
             </div>
           </div>
         </>

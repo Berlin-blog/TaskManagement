@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Task, AppSettings, TaskStatus } from '../types';
-import { Badge, Button, Modal, confirmAction, toast } from './ui';
+import { Badge, Button, Modal, Select, confirmAction, toast } from './ui';
 import { MoreMenu, type MenuItem } from './MoreMenu';
 import { Icon } from './icons';
 import { cn } from '../lib/utils';
@@ -32,6 +32,7 @@ export function TaskTable({
   sortKey,
   sortDesc,
   onToggleSort,
+  onChangeSort,
   onResetSort,
   scopeKey,
   embedded = false,
@@ -45,6 +46,8 @@ export function TaskTable({
   sortKey: SortKey;
   sortDesc: boolean;
   onToggleSort: (key: SortKey) => void;
+  /** 移动端/卡片模式下的显式排序（含方向），桌面表头仍用 onToggleSort */
+  onChangeSort?: (key: SortKey, desc: boolean) => void;
   onResetSort?: () => void;
   scopeKey: string;
   /** 作为任务卡片的内容区：自己去撑满高度，内部滚动 */
@@ -240,22 +243,31 @@ export function TaskTable({
   const thPad = density === 'compact' ? 'py-2' : 'py-2.5';
   const tdPad = density === 'compact' ? 'py-1.5' : 'py-3';
   const selectedOnPage = tasks.filter((t) => t.id && selected.has(t.id)).length;
+  const sortValue = sortKey === 'smart' ? 'smart' : `${sortKey}|${sortDesc ? 'desc' : 'asc'}`;
+  const applySort = (value: string) => {
+    if (value === 'smart') {
+      onResetSort?.();
+      return;
+    }
+    const [key, direction] = value.split('|') as [SortKey, 'asc' | 'desc'];
+    onChangeSort?.(key, direction === 'desc');
+  };
 
   return (
     <div className={cn('overflow-visible', embedded ? 'flex min-h-0 flex-1 flex-col' : 'card flex flex-col')}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 px-3 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1.5 font-medium text-slate-600">
+          <span className="hidden items-center gap-1.5 font-medium text-slate-600 xl:inline-flex">
             <Icon name="sparkles" className="h-3.5 w-3.5 text-brand-500" />
             {sortKey === 'smart' ? '智能排序：未完成优先，延期在前' : `按${SORT_LABELS[sortKey]}排序`}
           </span>
-          <span className="hidden text-slate-300 sm:inline">·</span>
+          <span className="hidden text-slate-300 xl:inline">·</span>
           <span className="num hidden sm:inline">共 {tasks.length} 行</span>
           {sortKey !== 'smart' && onResetSort && (
             <button
               type="button"
               onClick={onResetSort}
-              className="rounded text-brand-600 transition hover:text-brand-700 hover:underline"
+              className="hidden rounded text-brand-600 transition hover:text-brand-700 hover:underline xl:inline"
             >
               恢复智能排序
             </button>
@@ -271,7 +283,23 @@ export function TaskTable({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <div className="hidden items-center rounded-lg bg-slate-100 p-0.5 sm:flex" role="group" aria-label="表格密度">
+          <Select
+            value={sortValue}
+            onChange={(e) => applySort(e.target.value)}
+            className="h-8 w-auto min-w-[136px] text-xs xl:hidden"
+            aria-label="任务排序"
+          >
+            <option value="smart">智能排序</option>
+            <option value="priority|asc">优先级：P1 → P3</option>
+            <option value="priority|desc">优先级：P3 → P1</option>
+            <option value="estimatedDate|asc">日期：最早 → 最晚</option>
+            <option value="estimatedDate|desc">日期：最晚 → 最早</option>
+            <option value="seq|asc">序号：升序</option>
+            <option value="seq|desc">序号：降序</option>
+            <option value="completedAt|desc">完成时间：最近优先</option>
+            <option value="completedAt|asc">完成时间：最早优先</option>
+          </Select>
+          <div className="hidden items-center rounded-lg bg-slate-100 p-0.5 xl:flex" role="group" aria-label="表格密度">
             {([
               ['standard', '标准'],
               ['compact', '紧凑'],
@@ -290,7 +318,7 @@ export function TaskTable({
               </button>
             ))}
           </div>
-          <details className="relative hidden md:block">
+          <details className="relative hidden xl:block">
             <summary className="btn-outline h-7 min-h-0 cursor-pointer list-none gap-1 px-2 text-[11px] [&::-webkit-details-marker]:hidden">
               <Icon name="columns" className="h-3.5 w-3.5" />
               列显示
@@ -324,7 +352,7 @@ export function TaskTable({
       </div>
 
       {/* 桌面表格 */}
-      <div ref={scrollRef} className="hidden min-h-0 overflow-auto rounded-b-2xl md:block md:flex-1">
+      <div ref={scrollRef} className="hidden min-h-0 overflow-auto rounded-b-2xl xl:block xl:flex-1">
         <table className="w-full min-w-[960px] table-fixed text-[13px]">
           <thead>
             <tr className="table-head sticky top-0 z-10 text-left backdrop-blur">
@@ -522,7 +550,7 @@ export function TaskTable({
       </div>
 
       {/* 移动端卡片 */}
-      <div className="space-y-2 p-3 md:hidden">
+      <div className="grid items-start gap-2 p-3 md:grid-cols-2 xl:hidden">
         {tasks.map((t) => {
           const ds = displayStatus(t);
           const done = isDone(t);

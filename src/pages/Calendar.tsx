@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAllTasks, useSettings, setCompleted } from '../hooks/useTasks';
+import { useAllTasks, useSettings, useWeekNames, useLoadError, addTask, setCompleted } from '../hooks/useTasks';
 import {
-  Card, Button, Badge, EmptyState, PageSkeleton, PageHeader, Segmented,
+  Card, Button, Badge, EmptyState, PageSkeleton, PageLoadError, PageHeader, Segmented,
 } from '../components/ui';
+import { TaskForm } from '../components/TaskForm';
 import { Icon } from '../components/icons';
 import {
   priorityBadgeClass, priorityLabel, displayStatus, STATUS_BADGE_CLASS,
   DISPLAY_STATUS_LABELS, STATUS_DOT_CLASS, isDone, isDelayed, dueHint, dueUrgency,
   DUE_URGENCY_TEXT_CLASS, DUE_URGENCY_DOT_CLASS,
 } from '../lib/status';
-import { todayISO, weekRangeISO, formatDateWithWeekday } from '../lib/date';
+import { todayISO, weekRangeISO, formatDateWithWeekday, formatDateShort } from '../lib/date';
 import { displayWeekName } from '../lib/weekSort';
 import { cn } from '../lib/utils';
 import type { Task, AppSettings } from '../types';
@@ -26,6 +27,8 @@ function taskToDate(task: Pick<Task, 'revisedDate' | 'estimatedDate' | 'complete
 export default function Calendar() {
   const tasks = useAllTasks();
   const settings = useSettings();
+  const weekNames = useWeekNames();
+  const load = useLoadError();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -33,6 +36,8 @@ export default function Calendar() {
   const [quickRange, setQuickRange] = useState<'day' | 'week'>('day');
   const [mobileView, setMobileView] = useState<'agenda' | 'month'>('agenda');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const todayStr = todayISO();
 
   // 把任务按日期分组
@@ -81,7 +86,10 @@ export default function Calendar() {
   }, [tasks, week.start, week.end]);
 
   const selectedTasks = selectedDate ? (tasksByDate.get(selectedDate) ?? []) : [];
-  const panelTasks = quickRange === 'week' ? weekTasks : selectedTasks;
+  const panelAllTasks = quickRange === 'week' ? weekTasks : selectedTasks;
+  // 默认只看未完成，避免已完成记录淹没当天排期
+  const panelTasks = showCompleted ? panelAllTasks : panelAllTasks.filter((t) => !isDone(t));
+  const panelHiddenDone = panelAllTasks.length - panelTasks.length;
 
   // 当月统计
   const monthStats = useMemo(() => {
@@ -106,6 +114,11 @@ export default function Calendar() {
       .sort(([a], [b]) => a.localeCompare(b));
   }, [tasksByDate, year, month]);
 
+  const visibleAgendaGroups = agendaGroups
+    .map(([date, list]) => [date, showCompleted ? list : list.filter((t) => !isDone(t))] as [string, Task[]])
+    .filter(([, list]) => list.length > 0);
+
+  if (load.error && !tasks) return <PageLoadError title="日历" message={load.error} onRetry={load.retry} />;
   if (!tasks || !settings) return <PageSkeleton />;
 
   const prevMonth = () => {
@@ -168,18 +181,35 @@ export default function Calendar() {
               {year}年{MONTH_NAMES[month]}
             </span>
             <span className="num text-xs text-slate-500">当月 {monthStats.total} 项 · 已完成 {monthStats.completed}{monthStats.delayed > 0 ? ` · 延期 ${monthStats.delayed}` : ''}</span>
+            <button
+              type="button"
+              onClick={() => setShowCompleted((v) => !v)}
+              className={cn(
+                'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold ring-1 ring-inset transition',
+                showCompleted
+                  ? 'bg-slate-100 text-slate-700 ring-slate-200'
+                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50',
+              )}
+            >
+              <Icon name={showCompleted ? 'eye' : 'tasks'} className="h-3.5 w-3.5" />
+              {showCompleted ? '隐藏已完成' : `显示已完成${monthStats.completed > 0 ? ` · ${monthStats.completed}` : ''}`}
+            </button>
           </>
         }
         subtitle="按日期查看排期；颜色与文字同时标记状态，点日期可查看当天任务。"
         actions={
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Button variant="ghost" className="btn-icon" onClick={prevMonth} aria-label="上个月">
               <Icon name="chevron-left" className="h-4 w-4" />
             </Button>
-            <Button variant="primary" className="min-h-9" onClick={goToday}>回到今天</Button>
+            <Button variant="outline" className="min-h-9" onClick={goToday}>今天</Button>
             <Button variant="outline" className="min-h-9" onClick={goThisWeek}>本周</Button>
             <Button variant="ghost" className="btn-icon" onClick={nextMonth} aria-label="下个月">
               <Icon name="chevron-right" className="h-4 w-4" />
+            </Button>
+            <Button variant="primary" className="min-h-9" onClick={() => setAddOpen(true)}>
+              <Icon name="plus" className="h-4 w-4" />
+              新增任务
             </Button>
           </div>
         }
@@ -199,17 +229,21 @@ export default function Calendar() {
       {/* 移动端日程 */}
       {mobileView === 'agenda' && (
         <div className="space-y-3 md:hidden">
-          {agendaGroups.length === 0 ? (
+          {visibleAgendaGroups.length === 0 ? (
             <Card>
               <EmptyState
                 icon={<Icon name="calendar" className="h-5 w-5 text-brand-500" />}
-                title="本月还没有排期"
-                hint="切换到月历查看其他日期，或去任务页新增一条带日期的任务。"
-                action={<Link to="/tasks"><Button variant="primary">去新增任务</Button></Link>}
+                title={!showCompleted && agendaGroups.length > 0 ? '本月未完成任务为空' : '本月还没有排期'}
+                hint={!showCompleted && agendaGroups.length > 0
+                  ? '本月剩余的排期都已完成，可以显示已完成记录回看。'
+                  : '切换到月历查看其他日期，或直接新增一条带日期的任务。'}
+                action={!showCompleted && agendaGroups.length > 0
+                  ? <Button variant="outline" onClick={() => setShowCompleted(true)}>显示已完成</Button>
+                  : <Button variant="primary" onClick={() => setAddOpen(true)}>新增任务</Button>}
               />
             </Card>
           ) : (
-            agendaGroups.map(([date, list]) => (
+            visibleAgendaGroups.map(([date, list]) => (
               <section key={date}>
                 <div className="mb-1.5 flex items-center gap-2 px-1">
                   <h2 className={cn('text-sm font-semibold', date === todayStr ? 'text-brand-700' : 'text-slate-700')}>
@@ -305,7 +339,7 @@ export default function Calendar() {
                 <p className="mt-0.5 text-[11px] text-slate-400">
                   {quickRange === 'week'
                     ? `${week.start} 至 ${week.end} · ${weekTasks.length} 项`
-                    : `${panelTasks.length} 项任务`}
+                    : `${panelTasks.length} 项任务${panelHiddenDone > 0 ? ` · ${panelHiddenDone} 项已完成已收起` : ''}`}
                 </p>
               </div>
               {quickRange === 'week' ? (
@@ -318,9 +352,13 @@ export default function Calendar() {
               {panelTasks.length === 0 ? (
                 <EmptyState
                   icon={<Icon name="calendar" className="h-5 w-5 text-slate-500" />}
-                  title="当天没有排期任务"
-                  hint="点击月历中的其他日期查看，或去任务页新增一条带日期的任务。"
-                  action={<Link to="/tasks" className="text-xs font-semibold text-brand-600 hover:underline">去新增任务 →</Link>}
+                  title={panelHiddenDone > 0 ? '当天任务都已完成' : '当天没有排期任务'}
+                  hint={panelHiddenDone > 0
+                    ? `有 ${panelHiddenDone} 项已完成任务已收起，可以显示回看。`
+                    : '点击月历中的其他日期查看，或直接新增一条带日期的任务。'}
+                  action={panelHiddenDone > 0
+                    ? <Button variant="outline" onClick={() => setShowCompleted(true)}>显示已完成</Button>
+                    : <Button variant="primary" onClick={() => setAddOpen(true)}>新增任务</Button>}
                 />
               ) : (
                 <div className="space-y-2">
@@ -353,7 +391,7 @@ export default function Calendar() {
                 <h2 className="text-sm font-semibold text-slate-800">
                   {quickRange === 'week' ? '本周任务' : selectedDate ? formatDateWithWeekday(selectedDate) : '当天任务'}
                 </h2>
-                <p className="mt-0.5 text-[11px] text-slate-400">{panelTasks.length} 项</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{panelTasks.length} 项{panelHiddenDone > 0 ? ` · 已收起 ${panelHiddenDone} 项已完成` : ''}</p>
               </div>
               <button
                 type="button"
@@ -367,8 +405,14 @@ export default function Calendar() {
             <div className="max-h-[62vh] overflow-y-auto p-3">
               {panelTasks.length === 0 ? (
                 <div className="py-8 text-center">
-                  <p className="text-sm font-medium text-slate-700">当天没有排期任务</p>
-                  <Link to="/tasks" className="mt-2 inline-block text-xs font-semibold text-brand-600 hover:underline">去任务页新增 →</Link>
+                  <p className="text-sm font-medium text-slate-700">{panelHiddenDone > 0 ? '当天任务都已完成' : '当天没有排期任务'}</p>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-brand-600 hover:underline"
+                    onClick={() => { setDrawerOpen(false); setAddOpen(true); }}
+                  >
+                    新增任务 →
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">{panelTasks.map((t) => renderTask(t, true))}</div>
@@ -387,6 +431,16 @@ export default function Calendar() {
           <Link to="/tasks?due=none" className="text-xs font-semibold text-brand-600 hover:underline">查看这些任务 →</Link>
         </Card>
       )}
+
+      <TaskForm
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        weekName={weekNames?.[weekNames.length - 1] ?? ''}
+        weekNames={weekNames ?? []}
+        settings={settings}
+        defaultEstimatedDateText={selectedDate ? formatDateShort(selectedDate) : undefined}
+        onSave={async (t) => { await addTask(t); }}
+      />
     </div>
   );
 }

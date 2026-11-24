@@ -90,6 +90,8 @@ export function FilterBar({
   // 周筛选通过范围徽标和筛选 chip 已足够可见，高级区只在日期条件启用时自动展开
   const advancedActive = !!filter.due;
   const [advancedOpen, setAdvancedOpen] = useState(advancedActive);
+  // 移动端默认只露搜索与“筛选”，避免筛选区占掉首屏
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // URL 变化（清除/搜索/浏览器后退）时同步本地输入
   useEffect(() => { setKeyword(filter.keyword); }, [filter.keyword]);
@@ -137,36 +139,60 @@ export function FilterBar({
   return (
     <div className={embedded ? `border-b border-slate-200/70 p-3 ${className ?? ''}` : `card p-3.5 ${className ?? ''}`}>
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
-        <div className="relative min-w-0 flex-1 lg:min-w-[220px] lg:max-w-[380px]">
-          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-          <Input
-            id="task-keyword-input"
-            placeholder="搜索任务名称 / 备注…"
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              set({ keyword: e.target.value });
-            }}
-            className="h-9 pl-9 pr-9"
-            aria-label="关键词搜索"
-          />
-          {keyword && (
-            <button
-              type="button"
-              onClick={() => { setKeyword(''); set({ keyword: '' }); }}
-              className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-              aria-label="清空搜索"
-            >
-              <Icon name="close" className="h-3.5 w-3.5" />
-            </button>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1 lg:min-w-[220px] lg:max-w-[380px]">
+            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Input
+              id="task-keyword-input"
+              placeholder="搜索任务名称 / 备注…"
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                set({ keyword: e.target.value });
+              }}
+              className="h-9 pl-9 pr-9"
+              aria-label="关键词搜索"
+            />
+            {keyword && (
+              <button
+                type="button"
+                onClick={() => { setKeyword(''); set({ keyword: '' }); }}
+                className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="清空搜索"
+              >
+                <Icon name="close" className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen((v) => !v)}
+            aria-expanded={mobileFiltersOpen}
+            aria-controls="mobile-filter-fields"
+            className={cn(
+              'flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition xl:hidden',
+              mobileFiltersOpen || activeCount > 0
+                ? 'bg-slate-100 text-slate-700'
+                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+            )}
+          >
+            <Icon name="filter" className="h-3.5 w-3.5" />
+            筛选
+            {activeCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 text-[10px] font-semibold text-white">{activeCount}</span>}
+          </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-none lg:items-center">
+        <div
+          id="mobile-filter-fields"
+          className={cn(
+            'grid grid-cols-2 gap-2 sm:grid-cols-3 xl:flex xl:flex-none xl:items-center',
+            mobileFiltersOpen ? 'grid' : 'hidden',
+          )}
+        >
           <Select
             value={filter.requester}
             onChange={(e) => set({ requester: e.target.value })}
-            className="h-9 min-w-0 lg:w-auto lg:min-w-[124px]"
+            className="h-9 min-w-0 xl:w-auto xl:min-w-[124px]"
             aria-label="需求人筛选"
           >
             <option value="">全部需求人</option>
@@ -177,7 +203,7 @@ export function FilterBar({
           <Select
             value={filter.status}
             onChange={(e) => set({ status: e.target.value })}
-            className="h-9 min-w-0 lg:w-auto lg:min-w-[126px]"
+            className="h-9 min-w-0 xl:w-auto xl:min-w-[126px]"
             aria-label="状态筛选"
           >
             <option value="">全部状态</option>
@@ -188,7 +214,7 @@ export function FilterBar({
           <Select
             value={filter.priority}
             onChange={(e) => set({ priority: e.target.value })}
-            className="h-9 min-w-0 lg:w-auto lg:min-w-[112px]"
+            className="h-9 min-w-0 xl:w-auto xl:min-w-[112px]"
             aria-label="优先级筛选"
           >
             <option value="">全部优先级</option>
@@ -200,7 +226,7 @@ export function FilterBar({
           <button
             type="button"
             className={cn(
-              'col-span-2 flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition sm:col-span-1 lg:justify-start',
+              'col-span-2 flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition sm:col-span-1 xl:justify-start',
               advancedOpen || advancedActive
                 ? 'bg-slate-100 text-slate-700'
                 : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
@@ -216,10 +242,10 @@ export function FilterBar({
           </button>
         </div>
 
-        {activeCount > 0 && (
+        {activeCount > 0 && !showSummary && (
           <button
             type="button"
-            className="self-start px-1 text-xs font-medium text-slate-500 underline-offset-4 transition hover:text-slate-800 hover:underline lg:ml-auto lg:self-auto"
+            className="self-start px-1 text-xs font-medium text-slate-500 underline-offset-4 transition hover:text-slate-800 hover:underline xl:ml-auto xl:self-auto"
             onClick={clearAll}
           >
             清除全部

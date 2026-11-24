@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useSettings, useWeekNames, saveSettings, clearAllData } from '../hooks/useTasks';
+import { useSettings, useWeekNames, useLoadError, saveSettings, clearAllData } from '../hooks/useTasks';
 import {
-  Card, CardTitle, Button, Input, Badge, PageSkeleton, confirmAction, PageHeader, SectionTitle,
+  Card, CardTitle, Button, Input, Badge, PageSkeleton, PageLoadError, confirmAction, PageHeader, SectionTitle,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { DEFAULT_SETTINGS } from '../types';
@@ -11,6 +11,7 @@ import type { Priority } from '../types';
 export default function Settings() {
   const settings = useSettings();
   const sortedWeeks = useWeekNames();
+  const load = useLoadError();
   const [p1, setP1] = useState('');
   const [p2, setP2] = useState('');
   const [p3, setP3] = useState('');
@@ -32,6 +33,7 @@ export default function Settings() {
     }
   }, [settings, inited]);
 
+  if (load.error && !settings) return <PageLoadError title="设置" message={load.error} onRetry={load.retry} />;
   if (!settings) return <PageSkeleton />;
 
   const currentOrder = weekOrderDraft ?? settings.weekOrder ?? [];
@@ -39,6 +41,23 @@ export default function Settings() {
   const displayOrder = weekOrderDraft && weekOrderDraft.length > 0
     ? weekOrderDraft
     : (sortedWeeks ?? []);
+  const dirty = inited && (
+    p1 !== settings.priorityMap[1]
+    || p2 !== settings.priorityMap[2]
+    || p3 !== settings.priorityMap[3]
+    || special !== settings.specialTexts.join('、')
+    || periodic !== settings.periodicKeywords.join('、')
+    || JSON.stringify(currentOrder) !== JSON.stringify(settings.weekOrder ?? [])
+  );
+
+  const discardChanges = () => {
+    setP1(settings.priorityMap[1]);
+    setP2(settings.priorityMap[2]);
+    setP3(settings.priorityMap[3]);
+    setSpecial(settings.specialTexts.join('、'));
+    setPeriodic(settings.periodicKeywords.join('、'));
+    setWeekOrderDraft(null);
+  };
 
   const moveWeek = (idx: number, dir: -1 | 1) => {
     const list = [...displayOrder];
@@ -80,7 +99,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="page-stack">
+    <div className={`page-stack ${dirty ? 'pb-24' : ''}`}>
       <PageHeader
         title="设置"
         subtitle="任务选项、周顺序与数据管理；设置保存在本地数据库，不会随浏览器清缓存丢失。"
@@ -98,7 +117,7 @@ export default function Settings() {
                 已保存
               </span>
             )}
-            <Button variant="primary" className="min-h-9" onClick={save} disabled={saving}>
+            <Button variant="primary" className="min-h-9" onClick={save} disabled={saving || !dirty}>
               {saving ? '保存中…' : '保存设置'}
             </Button>
           </>
@@ -195,7 +214,7 @@ export default function Settings() {
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-slate-300">调整后点击页面上方“保存设置”生效。</p>
+          <p className="mt-2 text-[11px] text-slate-500">调整后点击「保存设置」生效；未保存时页面底部会出现保存栏。</p>
         </Card>
       </section>
 
@@ -208,7 +227,7 @@ export default function Settings() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-slate-700">任务与日志保存在本地 MySQL</p>
-              <p className="mt-0.5 text-xs text-slate-400">附件目录需要与数据库分开备份；可在导入导出页完成 xlsx 离线备份。</p>
+              <p className="mt-0.5 text-xs text-slate-500">附件目录需要与数据库分开备份；可在导入导出页完成 xlsx 离线备份。</p>
             </div>
             <Link to="/import-export">
               <Button variant="outline" className="min-h-9">
@@ -234,6 +253,24 @@ export default function Settings() {
           </div>
         </Card>
       </section>
+
+      {dirty && (
+        <div
+          className="fixed inset-x-4 bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-2xl items-center gap-3 rounded-xl border border-amber-200 bg-white/95 px-3.5 py-2.5 shadow-[var(--shadow-float)] backdrop-blur md:bottom-6"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-800">有未保存的修改</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">保存后设置会对所有页面生效</p>
+          </div>
+          <Button variant="ghost" className="min-h-8 shrink-0 text-xs" onClick={discardChanges}>放弃</Button>
+          <Button variant="primary" className="min-h-8 shrink-0 text-xs" onClick={save} disabled={saving}>
+            {saving ? '保存中…' : '保存'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

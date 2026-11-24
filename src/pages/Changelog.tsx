@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useChangelogs, useImportLogs, useAllTasks } from '../hooks/useTasks';
+import { useChangelogs, useImportLogs, useAllTasks, useLoadError } from '../hooks/useTasks';
 import {
-  Card, CardTitle, EmptyState, Badge, PageSkeleton, PageHeader, Button, Input, Segmented,
+  Card, CardTitle, EmptyState, Badge, PageSkeleton, PageLoadError, PageHeader, Button, Input, Segmented,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { DISPLAY_STATUS_LABELS } from '../lib/status';
@@ -32,8 +32,10 @@ export default function Changelog() {
   const logs = useChangelogs(300);
   const importLogs = useImportLogs();
   const tasks = useAllTasks();
+  const load = useLoadError();
   const [tab, setTab] = useState<'field' | 'history'>('field');
   const [keyword, setKeyword] = useState('');
+  const [historyKeyword, setHistoryKeyword] = useState('');
   const [week, setWeek] = useState('');
   const [field, setField] = useState('');
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -48,6 +50,7 @@ export default function Changelog() {
     }
   });
 
+  if (load.error && !logs) return <PageLoadError title="更新日志" message={load.error} onRetry={load.retry} />;
   if (!logs) return <PageSkeleton />;
 
   const weeks = Array.from(new Set([
@@ -97,14 +100,15 @@ export default function Changelog() {
 
   const clearFilters = () => {
     setKeyword('');
+    setHistoryKeyword('');
     setWeek('');
     setField('');
     setVisibleCount(50);
   };
 
   const keywordFilteredImport = (importLogs ?? []).filter((l) => {
-    if (!keyword.trim()) return true;
-    const kw = keyword.trim().toLowerCase();
+    if (!historyKeyword.trim()) return true;
+    const kw = historyKeyword.trim().toLowerCase();
     return [l.updatedAt, l.version, l.relatedSheet ?? ''].join('\n').toLowerCase().includes(kw);
   });
 
@@ -240,10 +244,10 @@ export default function Changelog() {
                 </div>
 
                 {/* 桌面表格 */}
-                <div className="hidden overflow-x-auto md:block">
+                <div className="hidden max-h-[calc(100dvh-18rem)] overflow-auto md:block">
                   <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+                    <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
+                      <tr className="border-b border-slate-200/70 text-left text-xs font-semibold text-slate-500">
                         <th className="px-3 py-2 font-medium">时间</th>
                         <th className="px-3 py-2 font-medium">任务</th>
                         <th className="px-3 py-2 font-medium">周</th>
@@ -316,8 +320,8 @@ export default function Changelog() {
                 <div className="relative">
                   <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
+                    value={historyKeyword}
+                    onChange={(e) => setHistoryKeyword(e.target.value)}
                     placeholder="搜索更新时间、版本或涉及表单…"
                     className="pl-9"
                     aria-label="搜索历史日志"

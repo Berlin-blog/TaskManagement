@@ -46,6 +46,44 @@ export function PageHeader({
   );
 }
 
+/** 数据加载失败：替代无限骨架屏，告诉用户发生了什么并给出重试 */
+export function PageLoadError({
+  title,
+  message,
+  onRetry,
+}: {
+  title: string;
+  message?: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="page-stack">
+      <PageHeader title={title} subtitle="数据暂时无法加载" />
+      <Card>
+        <div className="flex flex-col items-center px-6 py-12 text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-100">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M12 3l9 17H3L12 3zM12 9v5M12 17h.01" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h2 className="text-sm font-semibold text-slate-800">未能读取数据</h2>
+          <p className="mt-1.5 max-w-md text-xs leading-relaxed text-slate-500">
+            请确认本地服务与 MySQL 正在运行，然后重试。已成功加载的内容不受影响。
+          </p>
+          {message && (
+            <p className="mt-2 max-w-md break-words rounded-lg bg-slate-50 px-3 py-1.5 text-[11px] text-slate-500">
+              {message}
+            </p>
+          )}
+          <Button variant="primary" className="mt-5 min-h-9" onClick={onRetry}>
+            重新加载
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 /** 分区标题，用于“概览 / 分析”等页面层级 */
 export function SectionTitle({
   title,

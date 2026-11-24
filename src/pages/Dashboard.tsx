@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  useAllTasks, useSettings, useWeekNames, setCompleted, addTask, updateTaskFields,
+  useAllTasks, useSettings, useWeekNames, useLoadError, setCompleted, addTask, updateTaskFields,
 } from '../hooks/useTasks';
 import {
-  Card, Button, EmptyState, Badge, PageSkeleton, PageHeader, ProgressBar, SectionTitle,
+  Card, Button, EmptyState, Badge, PageSkeleton, PageLoadError, PageHeader, ProgressBar, SectionTitle,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import { ChartTooltip, CHART_COLORS } from '../components/ChartKit';
@@ -34,6 +34,7 @@ export default function Dashboard() {
   const tasks = useAllTasks();
   const settings = useSettings();
   const weekNames = useWeekNames();
+  const load = useLoadError();
   const { currentWeek } = useUIStore();
   const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
@@ -50,6 +51,7 @@ export default function Dashboard() {
     }
   }, [currentWeek, weekNames]);
 
+  if (load.error && !tasks) return <PageLoadError title="仪表盘" message={load.error} onRetry={load.retry} />;
   if (!tasks || !settings) return <PageSkeleton />;
 
   const taskForm = (
@@ -234,8 +236,8 @@ export default function Dashboard() {
       {/* 今日概览 */}
       <section aria-labelledby="overview-title">
         <div className="mb-3 flex items-center justify-between">
-          <h2 id="overview-title" className="text-sm font-semibold text-slate-700">今日概览</h2>
-          <span className="text-[11px] text-slate-400">点击指标查看对应任务</span>
+          <h2 id="overview-title" className="text-sm font-semibold text-slate-700">关键概览</h2>
+          <span className="text-[11px] text-slate-500">点击指标查看对应任务</span>
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <OverviewCard
@@ -264,9 +266,9 @@ export default function Dashboard() {
             onClick={() => navigate('/tasks?due=next7')}
           />
           <OverviewCard
-            label={focusWeek ? `${focusWeekName}完成率` : '本周完成率'}
+            label="完成率"
             value={`${focusRate}%`}
-            hint={focusWeek ? `${focusDone}/${focusTasks.length} 项已完成` : '还没有周数据'}
+            hint={focusWeek ? `${focusWeekName} · ${focusDone}/${focusTasks.length} 项已完成` : '还没有周数据'}
             icon="chart"
             tone="bg-emerald-500 text-white"
             progress={focusRate}
@@ -293,8 +295,27 @@ export default function Dashboard() {
           action={<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">共 {delayed.length + todayTasks.length + next7Tasks.length + highPriority.length} 项</span>}
         />
         <div id="priority-title" className="grid gap-3 lg:grid-cols-2">
-          {groups.map((group) => (
-            <Card key={group.key} className={cn('p-4', group.items.length === 0 && 'bg-slate-50/40')}>
+          {groups.every((group) => group.items.length === 0) ? (
+            <Card className="p-5 lg:col-span-2">
+              <div className="flex flex-col items-center justify-center py-5 text-center">
+                <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <Icon name="check" className="h-5 w-5" strokeWidth={2.4} />
+                </span>
+                <p className="text-sm font-semibold text-slate-800">当前没有需要优先处理的任务</p>
+                <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-500">
+                  继续安排当前工作周，或查看全部任务确认后续排期。
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Button variant="primary" className="min-h-9" onClick={() => setAddOpen(true)}>
+                    <Icon name="plus" className="h-4 w-4" />
+                    新增任务
+                  </Button>
+                  <Link to="/tasks"><Button variant="outline" className="min-h-9">查看全部任务</Button></Link>
+                </div>
+              </div>
+            </Card>
+          ) : groups.filter((group) => group.items.length > 0).map((group) => (
+            <Card key={group.key} className="p-4">
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset', group.tone)}>

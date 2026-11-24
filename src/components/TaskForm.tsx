@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Task, Priority, AppSettings } from '../types';
-import { Modal, Input, Select, Button, toast } from './ui';
+import { Modal, Input, Select, Button, toast, confirmAction } from './ui';
 import { uuid } from '../lib/utils';
 import { parseDate, formatDateShort, isSpecialText, todayISO } from '../lib/date';
 import { priorityLabel } from '../lib/status';
@@ -14,6 +14,7 @@ export function TaskForm({
   weekName,
   weekNames,
   settings,
+  defaultEstimatedDateText,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,10 +23,12 @@ export function TaskForm({
   weekName: string;
   weekNames: string[];
   settings?: AppSettings;
+  /** 新增时的预估时间默认值；不传则使用今天 */
+  defaultEstimatedDateText?: string;
 }) {
   const buildEmpty = useCallback((): Task => {
-    // 新增任务默认把预估时间填为今天，减少每天重复输入；仍可直接改成其他日期或「持续 / 待定」
-    const today = todayISO();
+    // 新增任务默认把预估时间填为今天（或日历选中的日期），减少重复输入
+    const defaultText = defaultEstimatedDateText?.trim() || formatDateShort(todayISO());
     return {
       uid: uuid(),
       weekName,
@@ -34,8 +37,8 @@ export function TaskForm({
       requester: '',
       priority: 3,
       attachmentCount: 0,
-      estimatedDate: today,
-      estimatedDateText: formatDateShort(today),
+      estimatedDate: parseDate(defaultText),
+      estimatedDateText: defaultText,
       revisedDate: null,
       revisedDateText: '',
       isSpecialDate: false,
@@ -48,20 +51,50 @@ export function TaskForm({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-  }, [weekName]);
+  }, [weekName, defaultEstimatedDateText]);
 
   const [form, setForm] = useState<Task>(() => initial ?? buildEmpty());
+  const [baseline, setBaseline] = useState<Task | null>(null);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ title?: string; week?: string }>({});
 
   // 每次打开都重新初始化，避免复用上一条的 uid / 内容（之前会出现 uid 重复、序号全 1）
   useEffect(() => {
     if (!open) return;
-    setForm(initial ? { ...initial } : buildEmpty());
+    const next = initial ? { ...initial } : buildEmpty();
+    setForm(next);
+    setBaseline(next);
     setSaving(false);
     setErrors({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
+
+  const isDirty = !!baseline && (
+    form.title !== baseline.title
+    || form.requester !== baseline.requester
+    || form.priority !== baseline.priority
+    || form.weekName !== baseline.weekName
+    || form.estimatedDateText !== baseline.estimatedDateText
+    || form.revisedDateText !== baseline.revisedDateText
+    || form.remark !== baseline.remark
+    || form.isPeriodic !== baseline.isPeriodic
+  );
+
+  const requestClose = async () => {
+    if (saving) return;
+    if (!isDirty) {
+      onClose();
+      return;
+    }
+    const ok = await confirmAction({
+      title: '放弃未保存的修改？',
+      message: '关闭后本次填写的内容不会保留。',
+      confirmText: '放弃修改',
+      cancelText: '继续编辑',
+      danger: true,
+    });
+    if (ok) onClose();
+  };
 
   const set = (patch: Partial<Task>) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -127,11 +160,11 @@ export function TaskForm({
   return (
     <Modal
       open={open}
-      onClose={() => { if (!saving) onClose(); }}
+      onClose={() => { void requestClose(); }}
       title={initial ? '编辑任务' : '新增任务'}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>取消</Button>
+          <Button variant="ghost" onClick={() => { void requestClose(); }} disabled={saving}>取消</Button>
           <Button variant="primary" onClick={submit} disabled={saving}>
             {saving ? '保存中…' : '保存'}
           </Button>

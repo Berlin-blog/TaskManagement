@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Task, AppSettings, Changelog, ImportLog } from '../types';
 import { todayISO, parseDate } from '../lib/date';
 import { uuid } from '../lib/utils';
@@ -38,28 +38,83 @@ function bump() {
   listeners.forEach((fn) => fn());
 }
 
+// ---------- 加载错误与重试 ----------
+let loadIdSeq = 0;
+const loadErrors = new Map<number, string>();
+const loadErrorListeners = new Set<() => void>();
+const retryableLoaders = new Map<number, () => void>();
+
+function notifyLoadError() {
+  loadErrorListeners.forEach((fn) => fn());
+}
+function clearLoadError(id: number) {
+  if (loadErrors.delete(id)) notifyLoadError();
+}
+function setLoadError(id: number, message: string) {
+  loadErrors.set(id, message);
+  notifyLoadError();
+}
+
+/** 重新执行当前页面所有数据请求；成功后错误状态会自动消失 */
+export function retryAllData() {
+  retryableLoaders.forEach((load) => load());
+}
+
+/**
+ * 读取加载错误；用于把“无限骨架屏”改成明确的失败态 + 重试。
+ * 只在页面还没有任何可用数据时展示，轮询失败不会遮住已有内容。
+ */
+export function useLoadError() {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force((v) => v + 1);
+    loadErrorListeners.add(fn);
+    return () => { loadErrorListeners.delete(fn); };
+  }, []);
+  return {
+    error: loadErrors.values().next().value as string | undefined,
+    retry: retryAllData,
+  };
+}
+
 /** 通用数据 hook：dataVersion 变化或写操作后重新拉取；轮询兜底 */
 function useData<T>(loader: () => Promise<T>, deps: any[], intervalMs = 15000): T | undefined {
   const [data, setData] = useState<T | undefined>(undefined);
   const depsKey = JSON.stringify(deps);
+  const idRef = useRef(0);
+  if (!idRef.current) idRef.current = ++loadIdSeq;
+  const id = idRef.current;
 
   const load = useCallback(() => {
-    loader().then(setData).catch((e) => console.error('load error:', e));
-  }, [depsKey]); // eslint-disable-line
+    loader()
+      .then((next) => {
+        setData(next);
+        clearLoadError(id);
+      })
+      .catch((e) => {
+        console.error('load error:', e);
+        setLoadError(id, e instanceof Error ? e.message : String(e));
+      });
+  }, [depsKey, id]); // eslint-disable-line
 
   useEffect(() => {
     load();
   }, [depsKey, dataVersion]); // eslint-disable-line
 
   useEffect(() => {
-    const id = setInterval(load, intervalMs);
-    return () => clearInterval(id);
+    const timer = setInterval(load, intervalMs);
+    return () => clearInterval(timer);
   }, [load, intervalMs]);
 
   useEffect(() => {
     listeners.add(load);
-    return () => { listeners.delete(load); };
-  }, [load]);
+    retryableLoaders.set(id, load);
+    return () => {
+      listeners.delete(load);
+      retryableLoaders.delete(id);
+      clearLoadError(id);
+    };
+  }, [load, id]);
 
   return data;
 }

@@ -62,6 +62,8 @@ export default function Layout() {
   const isManagePath = MANAGE_NAV.some((n) => location.pathname.startsWith(n.to));
   // 任务页自带搜索框，顶栏再放一个会重复占位
   const isTasksPage = location.pathname === '/tasks';
+  // 工作周只对任务列表和仪表盘有意义；日历、统计、设置等页面使用自己的范围
+  const isWeekScopedPage = location.pathname === '/' || location.pathname === '/tasks';
 
   // 让顶栏周选择器与 URL / 上次选择保持一致
   useEffect(() => {
@@ -159,7 +161,12 @@ export default function Layout() {
       if (week) localStorage.setItem(LAST_WEEK_KEY, week);
       else localStorage.removeItem(LAST_WEEK_KEY);
     } catch { /* ignore */ }
-    navigate(week ? `/tasks?week=${encodeURIComponent(week)}` : '/tasks');
+    // 仪表盘就地更新关注周；任务页写进 URL；其他页面不再被强行带去任务页
+    if (location.pathname === '/tasks') {
+      navigate(week ? `/tasks?week=${encodeURIComponent(week)}` : '/tasks');
+    } else if (location.pathname !== '/') {
+      navigate(week ? `/tasks?week=${encodeURIComponent(week)}` : '/tasks');
+    }
   };
 
   const createWeek = () => {
@@ -259,10 +266,11 @@ export default function Layout() {
       key={n.to}
       to={n.to}
       end={n.to === '/'}
+      aria-label={compact ? undefined : n.label}
       className={() => cn(
         compact
           ? 'flex flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium transition'
-          : 'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
+          : 'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors md:justify-center md:px-0 xl:justify-start xl:px-3',
         isActive(n.to)
           ? compact ? 'text-brand-700' : 'bg-brand-50/80 text-brand-700'
           : compact ? 'text-slate-500 active:bg-slate-100' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900',
@@ -270,7 +278,7 @@ export default function Layout() {
     >
       {!compact && isActive(n.to) && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-brand-600" />}
       <Icon name={n.icon} className={compact ? 'h-5 w-5' : 'h-[18px] w-[18px] shrink-0'} strokeWidth={isActive(n.to) ? 2.1 : 1.8} />
-      <span className={compact ? 'leading-none' : undefined}>{compact ? n.short : n.label}</span>
+      <span className={compact ? 'leading-none' : 'hidden xl:inline'}>{compact ? n.short : n.label}</span>
     </NavLink>
   );
 
@@ -310,19 +318,35 @@ export default function Layout() {
       <a href="#main-content" className="skip-link">跳到主要内容</a>
 
       {/* 侧边栏（桌面） */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col border-r border-slate-200/70 bg-white md:flex">
-        <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-slate-200/70 bg-white md:flex md:w-[72px] xl:w-[248px]">
+        <div className="flex items-center justify-center gap-2.5 px-2 pb-3 pt-4 xl:justify-start xl:px-5 xl:pb-4 xl:pt-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-[0_4px_12px_-4px_rgba(37,72,216,.5)]">
             <Icon name="check" className="h-5 w-5" strokeWidth={2.4} />
           </div>
-          <div className="min-w-0">
+          <div className="hidden min-w-0 xl:block">
             <p className="text-sm font-semibold leading-tight text-slate-900">任务排期</p>
             <p className="mt-0.5 text-[11px] text-slate-500">个人管理工具</p>
           </div>
         </div>
 
-        {/* 当前工作范围：放在导航上下文中，替代顶栏重复的年份/周控件 */}
-        <div className="mx-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5">
+        {/* 窄桌面 rail：用一个日历按钮打开与移动端相同的范围面板 */}
+        <button
+          type="button"
+          onClick={() => setScopeOpen(true)}
+          className={cn(
+            'mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 xl:hidden',
+            !isWeekScopedPage && 'invisible',
+          )}
+          title={isWeekScopedPage ? `当前范围：${currentScopeLabel}` : '当前页面不使用工作周'}
+          aria-label="切换工作范围"
+          aria-hidden={!isWeekScopedPage}
+          tabIndex={isWeekScopedPage ? 0 : -1}
+        >
+          <Icon name="calendar" className="h-4 w-4" />
+        </button>
+
+        {/* 当前工作范围：只在任务与仪表盘出现 */}
+        <div className={cn('mx-3 hidden rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5', isWeekScopedPage && 'xl:block')}>
           <div className="mb-1.5 flex items-center justify-between px-1">
             <span className="text-[11px] font-semibold text-slate-500">当前工作周</span>
             <button
@@ -342,29 +366,34 @@ export default function Layout() {
           </div>
           <p className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] text-slate-500">
             <span className={cn('h-1.5 w-1.5 rounded-full', connectionMeta.dot, connection === 'checking' && 'animate-pulse')} />
-            {currentScopeMeta} · 切换后打开任务页
+            {currentScopeMeta} · 切换后应用到当前页面
           </p>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="主导航">
-          <p className="mb-1.5 px-3 text-[11px] font-semibold tracking-[-0.01em] text-slate-500">工作台</p>
-          <div className="space-y-0.5">{COMMON_NAV.map((n) => renderNavItem(n))}</div>
+        <nav className="flex-1 overflow-y-auto px-2 py-4 xl:px-3" aria-label="主导航">
+          <p className="mb-1.5 hidden px-3 text-[11px] font-semibold tracking-[-0.01em] text-slate-500 xl:block">工作台</p>
+          <div className="space-y-1 xl:space-y-0.5">{COMMON_NAV.map((n) => renderNavItem(n))}</div>
 
           <button
             type="button"
             onClick={() => setManageOpen((v) => !v)}
             aria-expanded={manageOpen}
-            className="mt-5 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold text-slate-500 transition hover:text-slate-700"
+            className="mt-5 hidden w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold text-slate-500 transition hover:text-slate-700 xl:flex"
           >
             <span>管理</span>
             <Icon name="chevron-down" className={cn('h-3.5 w-3.5 transition-transform', !manageOpen && '-rotate-90')} />
           </button>
-          <div className={cn('space-y-0.5 overflow-hidden transition-all', manageOpen ? 'mt-1 opacity-100' : 'max-h-0 opacity-0')}>
+          <div className={cn(
+            'space-y-1 overflow-hidden transition-all xl:space-y-0.5',
+            manageOpen ? 'mt-1 opacity-100' : 'max-h-0 opacity-0',
+            'md:mt-4 md:max-h-[480px] md:border-t md:border-slate-200/70 md:pt-3 md:opacity-100 xl:mt-1 xl:border-0 xl:pt-0',
+            manageOpen ? 'xl:max-h-[480px] xl:opacity-100' : 'xl:max-h-0 xl:opacity-0',
+          )}>
             {MANAGE_NAV.map((n) => renderNavItem(n))}
           </div>
         </nav>
 
-        <div className="mx-3 mb-3 rounded-xl border border-slate-200/70 px-3 py-2.5">
+        <div className="mx-3 mb-3 hidden rounded-xl border border-slate-200/70 px-3 py-2.5 xl:block">
           <button
             type="button"
             onClick={() => navigate('/import-export')}
@@ -376,10 +405,20 @@ export default function Layout() {
           </button>
           <p className="mt-1.5 text-[11px] text-slate-500">数据保存在本地 MySQL</p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/import-export')}
+          className="mx-auto mb-4 flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 xl:hidden"
+          title={connectionMeta.text}
+          aria-label={connectionMeta.text}
+        >
+          <span className={cn('h-2 w-2 rounded-full', connectionMeta.dot, connection === 'checking' && 'animate-pulse')} />
+        </button>
       </aside>
 
       {/* 主区 */}
-      <div className="flex min-w-0 flex-1 flex-col md:pl-[248px]">
+      <div className="flex min-w-0 flex-1 flex-col md:pl-[72px] xl:pl-[248px]">
         <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
           {/* 桌面工具条：只保留全局搜索和连接状态，年份/周已移到侧栏 */}
           <div className="hidden h-[var(--header-height)] items-center gap-4 px-5 md:flex">
@@ -428,17 +467,23 @@ export default function Layout() {
               <span className="hidden text-sm font-semibold text-slate-900 min-[480px]:block">任务排期</span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setScopeOpen(true)}
-              className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 pl-2.5 pr-2 text-xs font-medium text-slate-700 transition active:bg-slate-50"
-              aria-haspopup="dialog"
-              aria-expanded={scopeOpen}
-            >
-              <Icon name="calendar" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-              <span className="min-w-0 flex-1 truncate text-left">{currentScopeLabel}</span>
-              <Icon name="chevron-down" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-            </button>
+            {isWeekScopedPage ? (
+              <button
+                type="button"
+                onClick={() => setScopeOpen(true)}
+                className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 pl-2.5 pr-2 text-xs font-medium text-slate-700 transition active:bg-slate-50"
+                aria-haspopup="dialog"
+                aria-expanded={scopeOpen}
+              >
+                <Icon name="calendar" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                <span className="min-w-0 flex-1 truncate text-left">{currentScopeLabel}</span>
+                <Icon name="chevron-down" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+              </button>
+            ) : (
+              <span className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-slate-800">
+                {PAGE_TITLES[location.pathname] ?? '任务排期'}
+              </span>
+            )}
 
             <button
               type="button"
@@ -562,7 +607,7 @@ export default function Layout() {
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
             <p className="text-[11px] font-semibold text-slate-500">当前</p>
             <p className="mt-1 text-base font-semibold text-slate-900">{currentScopeLabel}</p>
-            <p className="mt-0.5 text-xs text-slate-500">{currentScopeMeta} · 切换后打开任务页</p>
+            <p className="mt-0.5 text-xs text-slate-500">{currentScopeMeta} · 切换后应用到当前页面</p>
           </div>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-slate-600">年份</span>

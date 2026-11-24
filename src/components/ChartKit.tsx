@@ -26,7 +26,8 @@ export const CHART_COLORS = {
 };
 
 /** 优先级分类色：P1 高 / P2 中 / P3 低 —— 与徽标语义一致（玫红→琥珀→灰蓝） */
-export const PRIORITY_COLORS = ['#f43f5e', '#f59e0b', '#38bdf8'];
+// 与任务列表优先级徽标一致：P1 玫红、P2 琥珀、P3 石板灰
+export const PRIORITY_COLORS = ['#f43f5e', '#f59e0b', '#94a3b8'];
 
 /** 通用分类色：当类目较多且无固定语义时使用，色相相邻渐变 */
 export const CATEGORICAL = ['#2548d8', '#5b86fb', '#38bdf8', '#34d399', '#fbbf24', '#fb7185', '#a78bfa', '#94a3b8'];

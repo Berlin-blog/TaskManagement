@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAllTasks, useSettings, useWeekNames } from '../hooks/useTasks';
+import { useAllTasks, useSettings, useWeekNames, useLoadError } from '../hooks/useTasks';
 import {
-  Card, EmptyState, PageSkeleton, PageHeader, Button,
+  Card, EmptyState, PageSkeleton, PageLoadError, PageHeader, Button,
 } from '../components/ui';
 import { Icon } from '../components/icons';
 import {
@@ -52,10 +52,12 @@ export default function Stats() {
   const tasks = useAllTasks();
   const settings = useSettings();
   const weekNames = useWeekNames();
+  const load = useLoadError();
   const navigate = useNavigate();
   const [year, setYear] = useState('all');
   const [week, setWeek] = useState('all');
   const [requester, setRequester] = useState('all');
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const years = useMemo(() => {
     const set = new Set<number>();
@@ -72,6 +74,7 @@ export default function Stats() {
     if (week !== 'all' && !weeksInYear.includes(week)) setWeek('all');
   }, [week, weeksInYear]);
 
+  if (load.error && !tasks) return <PageLoadError title="统计" message={load.error} onRetry={load.retry} />;
   if (!tasks || !settings) return <PageSkeleton />;
 
   const requesters = Array.from(new Set(tasks.map((t) => t.requester).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN'));
@@ -169,7 +172,29 @@ export default function Stats() {
       {/* 统一筛选 */}
       <Card className="p-3.5">
         <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="grid flex-1 grid-cols-2 gap-2 sm:flex sm:flex-none">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            aria-controls="stats-filter-fields"
+            className={cn(
+              'flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition sm:hidden',
+              filtersOpen || activeCount > 0
+                ? 'bg-slate-100 text-slate-700'
+                : 'border border-slate-200 bg-white text-slate-600',
+            )}
+          >
+            <Icon name="filter" className="h-3.5 w-3.5" />
+            筛选
+            {activeCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 text-[10px] font-semibold text-white">{activeCount}</span>}
+          </button>
+          <div
+            id="stats-filter-fields"
+            className={cn(
+              'grid flex-1 grid-cols-2 gap-2 sm:flex sm:flex-none',
+              filtersOpen ? 'grid' : 'hidden',
+            )}
+          >
             <select
               value={year}
               onChange={(e) => { setYear(e.target.value); setWeek('all'); }}
